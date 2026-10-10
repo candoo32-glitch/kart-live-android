@@ -58,7 +58,8 @@ Gradle 8.11.1 wrapper (distribution SHA-256 verified). Android Gradle Plugin 8.9
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
-GitHub Actions performs these checks and uploads the debug APK and reports.
+GitHub Actions performs these checks, runs Android 15 emulator UI/video tests,
+and uploads the debug APK, reports and screenshots (retained for 14 days).
 See [architecture](docs/ARCHITECTURE.md), [protocol and safety](docs/PROTOCOL.md),
 and [validation and differences from Swift](docs/VALIDATION.md).
 
