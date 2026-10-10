@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public final class MainActivity extends Activity implements TextureView.SurfaceTextureListener {
+public final class MainActivity extends Activity implements TextureView.SurfaceTextureListener, android.hardware.input.InputManager.InputDeviceListener {
     private static final int IMPORT_CLIENT=1,IMPORT_CA=2,EXPORT_CSV=3;
     private static final int BG=0xff111b1a,CARD=0xff1c302b,MINT=0xff88e2b3,TEXT=0xffe5f3e9,MUTED=0xffa4bbae;
     private final Handler handler=new Handler(Looper.getMainLooper());
@@ -24,13 +24,14 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
     private TextView title,health,videoText,empty,stats,telemetry,recordText;
     private Button connect,arm,record;private InstrumentView instrument;private JoystickView joystick;
     private boolean resumed,fullScreen,controls=true,physicalHeld;
+    private int physicalDevice=-1;private android.hardware.input.InputManager inputManager;private LinearLayout driveButtons;
     private float physicalX,physicalY;private int mode;private String host,profile;
     private float brightness=0,contrast=1,saturation=1;
     private final Runnable refresh=new Runnable(){public void run(){if(!resumed)return;update();handler.postDelayed(this,100);}};
     @Override public void onCreate(Bundle saved){super.onCreate(saved);getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         prefs=getSharedPreferences("preferences",MODE_PRIVATE);host=prefs.getString("host","kart400.local");profile=prefs.getString("profile","");
         vault=new CredentialVault(this);session=new KartSession(getCacheDir());try{config=vault.load();}catch(Exception e){notifyError("Saved enrollment could not be loaded. Import it again.");}
-        build();
+        build();inputManager=(android.hardware.input.InputManager)getSystemService(INPUT_SERVICE);inputManager.registerInputDeviceListener(this,handler);
     }
     private int dp(float x){return Math.round(x*getResources().getDisplayMetrics().density);}
     private android.graphics.drawable.GradientDrawable rounded(int color){var d=new android.graphics.drawable.GradientDrawable();d.setColor(color);d.setCornerRadius(dp(14));return d;}
@@ -52,8 +53,9 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
         empty=label("◉\nKART LIVE\n\nYour garden, from the kart’s point of view\nConnect to the gateway for live video",18,MUTED);empty.setGravity(Gravity.CENTER);camera.addView(empty,new FrameLayout.LayoutParams(-1,-1));empty.setOnClickListener(v->fullScreen());
         videoText=label("CAMERA · waiting for stream",12,TEXT);videoText.setPadding(dp(12),dp(8),dp(12),dp(8));videoText.setBackgroundColor(0x99111b1a);camera.addView(videoText,new FrameLayout.LayoutParams(-1,-2,Gravity.TOP));
         joystick=new JoystickView(this);joystick.listener((x,y)->session.input(x,y));FrameLayout.LayoutParams joy=new FrameLayout.LayoutParams(dp(126),dp(126),Gravity.BOTTOM|Gravity.START);joy.setMargins(dp(8),0,0,dp(7));camera.addView(joystick,joy);
-        LinearLayout tools=row();addButton(tools,button("View",this::fullScreen));addButton(tools,button("Look",this::videoAdjustments));Button a=button("A · Arm",this::confirmArm),b=button("B · Stop",this::emergencyStop);b.setBackground(rounded(0xff79443c));addButton(tools,a);addButton(tools,b);
-        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.END);tp.setMargins(0,0,dp(8),dp(8));camera.addView(tools,tp);
+        LinearLayout tools=row();addButton(tools,button("View",this::fullScreen));addButton(tools,button("Look",this::videoAdjustments));FrameLayout.LayoutParams topTools=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.END);topTools.setMargins(0,dp(38),dp(8),0);camera.addView(tools,topTools);
+        driveButtons=row();Button a=button("A · Arm",this::confirmArm),b=button("B · Stop",this::emergencyStop);b.setBackground(rounded(0xff79443c));addButton(driveButtons,a);addButton(driveButtons,b);
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.END);tp.setMargins(0,0,dp(8),dp(8));camera.addView(driveButtons,tp);
         sidebar=column();LinearLayout.LayoutParams side=new LinearLayout.LayoutParams(0,-1,1.15f);side.setMargins(dp(10),0,0,0);body.addView(sidebar,side);
         instrument=new InstrumentView(this);sidebar.addView(instrument,new LinearLayout.LayoutParams(-1,0,1));
         telemetry=label("Battery —   Wi-Fi —\nIMU waiting",11,MUTED);telemetry.setPadding(dp(8),dp(5),dp(3),dp(3));sidebar.addView(telemetry);
@@ -68,7 +70,7 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
         if(joystick.held()&&hasWindowFocus())session.input(joystick.steer(),joystick.throttle());
         else if(physicalHeld&&hasWindowFocus())session.input(physicalX,physicalY);
         connect.setText(c!=null&&c.alive?"Disconnect":"Connect");
-        if(c==null){title.setText("Kart Live  ·  Garden");health.setText(config==null?"Import client JSON and the public gateway CA under Setup":"Ready · "+host+" · "+config.permission()+" permission");stats.setText("No stream");recordText.setText("DISARMED · "+session.recorder.state);empty.setVisibility(View.VISIBLE);return;}
+        if(c==null){arm.setText("Arm");arm.setBackground(rounded(0xff2b443a));telemetry.setText("Battery —   Wi-Fi —\nIMU waiting");instrument.update(Orientation.identity(),"Nintendo","Waiting for IMU",false);videoText.setText("CAMERA · waiting for stream");title.setText("Kart Live  ·  Garden");health.setText(config==null?"Import client JSON and the public gateway CA under Setup":"Ready · "+host+" · "+config.permission()+" permission");stats.setText("No stream");recordText.setText("DISARMED · "+session.recorder.state);empty.setVisibility(View.VISIBLE);return;}
         boolean fresh=KartSession.age(c.lastImu)<1000,statusFresh=KartSession.age(c.lastStatus)<1800;
         title.setText(c.name+"  ·  Kart Live");String bars="—";
         Integer rssi=statusFresh?c.rssi:null;if(rssi!=null){int n=rssi>=-55?4:rssi>=-67?3:rssi>=-75?2:rssi>=-85?1:0;bars="▂▄▆█".substring(0,n)+" "+rssi+" dBm";}
@@ -76,7 +78,7 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
         health.setTextColor(c.error.isEmpty()&&c.connected&&statusFresh?MINT:0xffffc977);
         String battery=c.battery<0?"—":"["+"●●●●".substring(0,c.battery)+"○○○○".substring(0,4-c.battery)+"]"+(c.cable?" cable":"");
         telemetry.setText("Battery "+battery+"   Wi-Fi "+bars+"\n"+(fresh?"IMU live":"IMU stale")+" · "+c.telemetryPackets+" packets");
-        synchronized(c.orientation){instrument.update(c.orientation.output(c.latest,mode),new String[]{"Nintendo","Gyro*","Fusion*"}[mode],c.orientation.detail,fresh);}
+        synchronized(c.orientation){boolean ready=mode==0?c.latest!=null&&c.latest.quaternion!=null:c.orientation.calibrated();instrument.update(c.orientation.output(c.latest,mode),new String[]{"Nintendo","Gyro*","Fusion*"}[mode],ready?c.orientation.detail:"Calibration required · Nintendo fallback",fresh&&ready);}
         long videoAge=KartSession.age(c.lastVideo);empty.setVisibility(videoAge>1500?View.VISIBLE:View.GONE);
         if(videoAge>1500)empty.setText("◉\nKART LIVE\n\nWaiting for live video\n"+(c.connected?"Kart subscribed":"Power on the selected kart"));
         videoText.setText(c.name+" · "+(videoAge>1500?"video stale":session.decoder.detail));
@@ -90,6 +92,7 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
         physicalHeld=false;joystick.neutral();mode=0;session.connect(config,host,profile,vault);update();
     }
     private void confirmArm(){
+        if(!controls){toast("Show controls under Setup before arming");return;}
         if(session.current()!=null&&session.current().armed){emergencyStop();return;}
         String reason=session.armBlock();if(!reason.isEmpty()){toast(reason);return;}
         session.input(0,0);new AlertDialog.Builder(this).setTitle("Authorize kart movement?").setMessage("The joystick will move the kart. Place it on a clear surface, release the controls, then arm. B or STOP disarms immediately.").setNegativeButton("Cancel",null).setPositiveButton("Arm",(d,w)->session.arm()).show();
@@ -106,7 +109,7 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
         contents.addView(label("Client: "+(config==null?"not imported":config.permission()+" · "+config.id())+"\nGateway CA: "+(vault.hasCa()?"imported":"not imported"),12,MUTED));
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Connect to your garden").setView(contents).setNegativeButton("Close",null).setPositiveButton("Save address",null).create();
         for(String item:new String[]{"Import client JSON","Import gateway CA","Choose saved kart","Forget local enrollment","Show / hide controls"}) {
-            Button b=button(item,()->{dialog.dismiss();switch(item){case "Import client JSON"->pick(IMPORT_CLIENT);case "Import gateway CA"->pick(IMPORT_CA);case "Choose saved kart"->chooseKart();case "Forget local enrollment"->forget();default->{controls=!controls;joystick.setVisibility(controls?View.VISIBLE:View.GONE);emergencyStop();}}});contents.addView(b,new LinearLayout.LayoutParams(-1,dp(48)));
+            Button b=button(item,()->{dialog.dismiss();switch(item){case "Import client JSON"->pick(IMPORT_CLIENT);case "Import gateway CA"->pick(IMPORT_CA);case "Choose saved kart"->chooseKart();case "Forget local enrollment"->forget();default->{controls=!controls;joystick.setVisibility(controls?View.VISIBLE:View.GONE);driveButtons.setVisibility(controls?View.VISIBLE:View.GONE);emergencyStop();}}});contents.addView(b,new LinearLayout.LayoutParams(-1,dp(48)));
         }
         ScrollView scroll=new ScrollView(this);contents.removeView(description);contents.addView(description,0); // Keep instructions first when keyboard opens.
         // Use a scrolling dialog so focused fields remain reachable on small phones.
@@ -144,10 +147,13 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
     @Override protected void onResume(){super.onResume();resumed=true;session.foreground(true);handler.post(refresh);}
     @Override protected void onStop(){resumed=false;handler.removeCallbacks(refresh);physicalHeld=false;joystick.neutral();session.foreground(false);session.disconnect();super.onStop();}
     @Override public void onWindowFocusChanged(boolean focus){super.onWindowFocusChanged(focus);if(session!=null&&!focus){physicalHeld=false;joystick.neutral();session.stop("Focus lost · DISARMED");}}
-    @Override protected void onDestroy(){session.close();files.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){inputManager.unregisterInputDeviceListener(this);session.close();files.shutdown();super.onDestroy();}
     @Override public void onBackPressed(){emergencyStop();if(fullScreen)fullScreen();else super.onBackPressed();}
-    @Override public boolean onGenericMotionEvent(MotionEvent e){if((e.getSource()&InputDevice.SOURCE_JOYSTICK)==InputDevice.SOURCE_JOYSTICK&&e.getAction()==MotionEvent.ACTION_MOVE&&controls){physicalX=e.getAxisValue(MotionEvent.AXIS_X);physicalY=-e.getAxisValue(MotionEvent.AXIS_Y);physicalHeld=Math.abs(physicalX)>.08||Math.abs(physicalY)>.08;session.input(physicalX,physicalY);return true;}return super.onGenericMotionEvent(e);}
+    @Override public boolean onGenericMotionEvent(MotionEvent e){if((e.getSource()&InputDevice.SOURCE_JOYSTICK)==InputDevice.SOURCE_JOYSTICK&&e.getAction()==MotionEvent.ACTION_MOVE&&controls){physicalDevice=e.getDeviceId();physicalX=e.getAxisValue(MotionEvent.AXIS_X);physicalY=-e.getAxisValue(MotionEvent.AXIS_Y);physicalHeld=Math.abs(physicalX)>.08||Math.abs(physicalY)>.08;session.input(physicalX,physicalY);return true;}return super.onGenericMotionEvent(e);}
     @Override public boolean onKeyDown(int code,KeyEvent event){if(code==KeyEvent.KEYCODE_BUTTON_B){emergencyStop();return true;}if(code==KeyEvent.KEYCODE_BUTTON_A){if(event.getRepeatCount()==0)confirmArm();return true;}return super.onKeyDown(code,event);}
+    public void onInputDeviceAdded(int id){}
+    public void onInputDeviceChanged(int id){if(id==physicalDevice)emergencyStop();}
+    public void onInputDeviceRemoved(int id){if(id==physicalDevice){physicalDevice=-1;emergencyStop();}}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     private void notifyError(String s){new AlertDialog.Builder(this).setTitle("Kart Live").setMessage(s==null?"Operation failed":s).setPositiveButton("OK",null).show();}
 }
