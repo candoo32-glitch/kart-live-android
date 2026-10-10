@@ -147,12 +147,16 @@ public final class MainActivity extends Activity
     header = row();
     title = label("Kart Live  ·  Garden", 21, MINT);
     title.setTypeface(null, Typeface.BOLD);
+    title.setMaxLines(1);
+    title.setEllipsize(android.text.TextUtils.TruncateAt.END);
     header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
     connect = button("Connect", this::toggleConnection);
     addButton(header, connect);
     addButton(header, button("Setup", this::setup));
     root.addView(header);
     health = label("Import client enrollment and gateway CA to get started", 12, MUTED);
+    health.setMaxLines(1);
+    health.setEllipsize(android.text.TextUtils.TruncateAt.END);
     health.setPadding(dp(3), dp(5), 0, dp(8));
     root.addView(health);
     LinearLayout body = row();
@@ -166,14 +170,10 @@ public final class MainActivity extends Activity
     texture.setSurfaceTextureListener(this);
     camera.addView(texture, new FrameLayout.LayoutParams(-1, -1));
     texture.setOnClickListener(v -> fullScreen());
-    empty =
-        label(
-            "◉\n"
-                + "KART LIVE\n\n"
-                + "Your garden, from the kart’s point of view\n"
-                + "Connect to the gateway for live video",
-            18,
-            MUTED);
+    empty = label("◉\nKART LIVE", 18, MUTED);
+    empty.setBackgroundColor(0xff081310);
+    empty.setPadding(dp(140), dp(54), dp(145), dp(54));
+    empty.setMaxLines(2);
     empty.setGravity(Gravity.CENTER);
     camera.addView(empty, new FrameLayout.LayoutParams(-1, -1));
     empty.setOnClickListener(v -> fullScreen());
@@ -300,11 +300,9 @@ public final class MainActivity extends Activity
           fresh && ready);
     }
     long videoAge = KartSession.age(c.lastVideo);
-    empty.setVisibility(videoAge > 1500 ? View.VISIBLE : View.GONE);
-    if (videoAge > 1500)
-      empty.setText(
-          "◉\nKART LIVE\n\nWaiting for live video\n"
-              + (c.connected ? "Kart subscribed" : "Power on the selected kart"));
+    boolean noPicture = videoAge > 1500 || session.decoder.rendered == 0;
+    empty.setVisibility(noPicture ? View.VISIBLE : View.GONE);
+    if (noPicture) empty.setText("◉\nNo video");
     videoText.setText(c.name + " · " + (videoAge > 1500 ? "video stale" : session.decoder.detail));
     stats.setText(
         c.videoPackets
@@ -814,6 +812,23 @@ public final class MainActivity extends Activity
     resumed = true;
     session.foreground(true);
     handler.post(refresh);
+    root.post(
+        () -> {
+          if (Build.VERSION.SDK_INT >= 30 && getWindow().getInsetsController() != null) {
+            getWindow()
+                .getInsetsController()
+                .setSystemBarsAppearance(
+                    0,
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+          } else {
+            View decor = getWindow().getDecorView();
+            decor.setSystemUiVisibility(
+                decor.getSystemUiVisibility()
+                    & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+          }
+        });
   }
 
   @Override

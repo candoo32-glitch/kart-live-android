@@ -44,7 +44,14 @@ public final class InstrumentView extends View {
     double pitch = Math.asin(Math.max(-1, Math.min(1, 2 * (s * x + y * z))));
     double roll = Math.atan2(2 * (s * y - x * z), 1 - 2 * (x * x + y * y));
     double yaw = Math.atan2(2 * (s * z + x * y), 1 - 2 * (y * y + z * z));
-    float radius = Math.min(w * .37f, h * .23f), cx = w / 2, cy = h * .32f;
+    boolean compact = h < 230 * density();
+    float bodyHeight = Math.max(12 * density(), h - 76 * density());
+    float radius =
+        compact
+            ? Math.min(w * .17f, bodyHeight * .43f)
+            : Math.min(w * .32f, (bodyHeight * .5f - 18 * density()) / 2);
+    float cx = compact ? w * .27f : w / 2;
+    float cy = compact ? 32 * density() + bodyHeight / 2 : 32 * density() + radius;
     c.save();
     Path circle = new Path();
     circle.addCircle(cx, cy, radius, Path.Direction.CW);
@@ -75,20 +82,24 @@ public final class InstrumentView extends View {
         String.format(
             Locale.ROOT, "R %+.1f°  P %+.1f°", Math.toDegrees(roll), Math.toDegrees(pitch)),
         pad,
-        h * .57f,
+        compact ? h - 34 * density() : 32 * density() + radius * 2 + 16 * density(),
         size,
         0xffe5f3e9);
-    drawKart(c, w / 2, h * .74f, Math.min(w * .29f, h * .19f));
+    drawKart(
+        c,
+        compact ? w * .75f : w / 2,
+        compact ? cy : 32 * density() + bodyHeight * .78f,
+        compact ? Math.min(w * .14f, bodyHeight * .35f) : Math.min(w * .29f, bodyHeight * .25f));
     text(
         c,
         String.format(
             Locale.ROOT, "Heading %+.1f° · %s", Math.toDegrees(yaw), fresh ? "live" : "stale"),
         pad,
-        h * .91f,
+        h - 20 * density(),
         size,
         0xffd4e8df);
     String truncated = detail.length() > 37 ? detail.substring(0, 37) + "…" : detail;
-    text(c, truncated, pad, h * .97f, 10 * density(), 0xffa4bbae);
+    text(c, truncated, pad, h - 6 * density(), 10 * density(), 0xffa4bbae);
   }
 
   private void drawKart(Canvas c, float cx, float cy, float scale) {
