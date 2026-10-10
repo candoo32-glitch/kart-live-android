@@ -25,9 +25,12 @@ public final class KartSession implements AutoCloseable {
     private DatagramSocket socket(int port) throws Exception { DatagramSocket s=new DatagramSocket(null);try{s.setReceiveBufferSize(2*1024*1024);s.bind(new InetSocketAddress(port));s.setSoTimeout(100);return s;}catch(Exception e){s.close();throw e;} }
     private void receive(Connection c,DatagramSocket socket,boolean video) {
         Thread thread=new Thread(()->{
-            byte[] buffer=new byte[65535];LspAssembler assembler=new LspAssembler();long generation=0;
+            byte[] buffer=new byte[65535];LspAssembler assembler=new LspAssembler();long generation=0,streamGeneration=-1;
             while(c.alive&&!socket.isClosed())try {
                 DatagramPacket packet=new DatagramPacket(buffer,buffer.length);socket.receive(packet);
+                synchronized(c.streamLock) {
+                if(!c.alive||c!=connection)continue;
+                if(streamGeneration!=c.streamGeneration){assembler.reset();streamGeneration=c.streamGeneration;}
                 int source=video?c.videoSource:c.telemetrySource;
                 if(source<0||packet.getPort()!=source||!packet.getAddress().equals(c.address))continue;
                 byte[] data=Arrays.copyOf(packet.getData(),packet.getLength());
@@ -37,20 +40,29 @@ public final class KartSession implements AutoCloseable {
                     if(t.type==2){c.lastImu=System.nanoTime();c.latest=t;synchronized(c.orientation){c.orientation.update(t,c.lastImu);}}
                     recorder.append(t,data);
                 }
+                }
             }catch(SocketTimeoutException e){if(video)synchronized(decoder){if(c==connection&&c.alive)decoder.drain();}}catch(Exception e){if(c.alive){c.error="UDP receive failed";stopConnection(c,"UDP failure");}break;}
         },video?"kart-video":"kart-telemetry");thread.setDaemon(true);thread.start();
     }
     private void poll(Connection c) {
         if(!c.alive)return;
         try {
-            if(System.nanoTime()-c.lastSubscribe>10_000_000_000L) {
+            if(c.lastSubscribe==0||System.nanoTime()-c.lastSubscribe>10_000_000_000L) {
                 JSONObject ports=new JSONObject().put("video",41000).put("telemetry",41001);
                 JSONObject body=new JSONObject().put("ports",ports);if(!c.profile.isEmpty())body.put("profile",c.profile);
                 JSONObject response=c.api.request("/v1/subscribe",body);
                 if(!c.alive)return;
                 JSONObject identity=response.optJSONObject("kart"),map=response.getJSONObject("map"),udp=map.getJSONObject("udp");
-                c.profileId=identity==null?"":identity.optString("profile_id","");c.name=identity==null?"Kart":identity.optString("name","Kart");c.serial=identity==null?"":identity.optString("serial","");
-                c.videoSource=udp.getInt("video");c.telemetrySource=udp.getInt("telemetry");c.lastSubscribe=System.nanoTime();
+                synchronized(c.streamLock) {
+                    String nextProfile=identity==null?"":identity.optString("profile_id","");
+                    if(!c.profileId.equals(nextProfile)) {
+                        stopConnection(c,"Kart changed · DISARMED");c.streamGeneration++;
+                        c.lastImu=c.lastVideo=0;c.latest=null;c.battery=-1;c.cable=false;c.rssi=null;
+                        synchronized(c.orientation){c.orientation.reset();}decoder.reset();recorder.stop();
+                    }
+                    c.profileId=nextProfile;c.name=identity==null?"Kart":identity.optString("name","Kart");c.serial=identity==null?"":identity.optString("serial","");
+                    c.videoSource=udp.getInt("video");c.telemetrySource=udp.getInt("telemetry");c.lastSubscribe=System.nanoTime();
+                }
             }
             JSONObject status=c.api.request("/v1/status",null);if(!c.alive)return;
             c.rawStatus=status.toString(2);JSONObject kart=status.optJSONObject("subscribed_kart"),health=status.optJSONObject("connection_health");
@@ -59,6 +71,8 @@ public final class KartSession implements AutoCloseable {
             if(health!=null&&c.profileId.equals(health.optString("profile_id"))) { c.health=health.optString("state","disconnected");if(!health.optBoolean("wifi_stale",true)&&!health.isNull("wifi_rssi_dbm"))c.rssi=health.getInt("wifi_rssi_dbm"); }
             c.lastStatus=System.nanoTime();c.error="";
             if(!c.connected)stopConnection(c,"Kart offline");
+            JSONObject controlled=status.optJSONObject("controlled_kart");
+            if(c.armed&&(controlled==null||!c.profileId.equals(controlled.optString("profile_id"))))stopConnection(c,"Gateway released control lease · DISARMED");
         }catch(Exception e){if(c.alive){c.connected=false;c.rssi=null;c.error="Gateway: "+message(e);stopConnection(c,"Gateway unavailable");}}
     }
     public void input(float steer,float throttle) { Connection c=connection;if(c==null)return;synchronized(c){c.steer=Math.abs(steer)<.08?0:steer;c.throttle=Math.abs(throttle)<.08?0:throttle;c.lastInput=System.nanoTime();} }
@@ -125,6 +139,7 @@ public final class KartSession implements AutoCloseable {
         final ClientConfig config;final String host,profile;volatile boolean alive=true,connected;
         volatile GatewayApi api;volatile InetAddress address;
         volatile DatagramSocket video,telemetry,motor;
+        final Object streamLock=new Object();volatile long streamGeneration;
         final MotorLease lease=new MotorLease();public final Orientation orientation=new Orientation();
         ScheduledFuture<?> poll,motorTick;long armGeneration,lastMotorTick;
         public volatile boolean armed,armPending,cable;

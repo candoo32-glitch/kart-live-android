@@ -28,7 +28,9 @@ fallbacks only when the stream omits them. Source resolution is 1280×800; displ
 transformation shows the top 1280×720 at 16:9.
 
 Motor transmission has its own scheduled worker and connection lock. Disconnect
-closes sockets and invalidates pending arm generations. Late arm replies cannot
+closes sockets and invalidates pending arm generations. Changing the subscribed profile resets decoder/assembly, instruments, battery,
+telemetry freshness and capture state; calibration cannot leak to another kart.
+Late arm replies cannot
 activate the old connection. Foreground loss disarms and disconnects rather than
 leaving a background service. Restoring the app requires Connect and a new explicit
 Arm. Saved settings never contain an armed state or calibration/bias.
