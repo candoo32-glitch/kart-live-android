@@ -107,6 +107,27 @@ public class DashboardSmokeTest {
       assertEquals("Decoder errors", 0, session[0].decoder.errors);
       assertTrue("At least one H.264 picture rendered", session[0].decoder.rendered > 0);
       assertNull("No kart connection opened", session[0].current());
+      // A decoder surface can retain the previous kart's last picture. With no
+      // active subscription, it must be hidden by the opaque no-video panel.
+      final int[] point = new int[2];
+      scenario.onActivity(
+          a -> {
+            try {
+              var field = MainActivity.class.getDeclaredField("texture");
+              field.setAccessible(true);
+              android.view.TextureView texture = (android.view.TextureView) field.get(a);
+              texture.getLocationOnScreen(point);
+              point[0] += Math.round(texture.getWidth() * .25f);
+              point[1] += Math.round(texture.getHeight() * .25f);
+            } catch (Exception e) {
+              throw new AssertionError(e);
+            }
+          });
+      Bitmap image =
+          InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
+      assertNotNull(image);
+      assertEquals("Disconnected video is masked", 0xff081310, image.getPixel(point[0], point[1]));
+      image.recycle();
     }
   }
 

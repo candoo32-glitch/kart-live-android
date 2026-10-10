@@ -26,7 +26,8 @@ to verify immediate neutral, stop packets, cancellation of late arm replies, sta
 telemetry shutdown, counter exhaustion without rearm, and read-only rejection.
 The APK build, 21 unit tests and Android lint are checked by GitHub Actions.
 Three Android 15 emulator tests verify visible controls, full-screen return/stop,
-and MediaCodec rendering of a generated six-picture H.264 pattern. Test fixtures
+and MediaCodec rendering of a generated six-picture H.264 pattern, including
+masking retained decoder pictures when no subscription is active. Test fixtures
 contain no physical camera images or credentials; the APK/report artifact also
 includes screenshots. These checks do not
 prove hardware behavior. No live kart is armed during repository/build testing.
