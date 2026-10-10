@@ -59,5 +59,9 @@ public class DashboardSmokeTest {
         Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();assertNotNull(image);
         File dir=InstrumentationRegistry.getInstrumentation().getTargetContext().getExternalFilesDir("screenshots");assertNotNull(dir);if(!dir.exists())assertTrue(dir.mkdirs());
         try(FileOutputStream out=new FileOutputStream(new File(dir,name))){assertTrue(image.compress(Bitmap.CompressFormat.PNG,100,out));}image.recycle();
+        // Gradle uninstalls the app after connected tests; preserve pictures in
+        // the emulator shell directory so CI can retrieve them afterward.
+        String source=new File(dir,name).getAbsolutePath();
+        try(android.os.ParcelFileDescriptor fd=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("cp '"+source+"' '/data/local/tmp/kart-live-"+name+"'");java.io.InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(fd)) { byte[] buffer=new byte[1024];while(in.read(buffer)!=-1){} }
     }
 }

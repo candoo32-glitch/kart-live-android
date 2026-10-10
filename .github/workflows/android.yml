@@ -38,7 +38,9 @@ jobs:
           disable-animations: true
           script: |
             ./gradlew --no-daemon connectedDebugAndroidTest
-            adb pull /sdcard/Android/data/com.kartgarden.live/files/screenshots app/build/screenshots
+            mkdir -p app/build/screenshots
+            adb pull /data/local/tmp/kart-live-dashboard.png app/build/screenshots/dashboard.png
+            adb pull /data/local/tmp/kart-live-setup.png app/build/screenshots/setup.png
       - name: Upload installable debug APK and reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
