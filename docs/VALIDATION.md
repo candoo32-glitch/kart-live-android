@@ -20,11 +20,12 @@ an Android implementation of the core client, with the following differences:
 Unit tests cover terminal-fragment extraction, sequence gaps/duplicates/wrap,
 frame abandonment, NAL/AUD splitting, telemetry lengths/scales/subsamples,
 battery range, unsigned counters, overflow/exhaustion, nonfinite controls,
-background/stale-input gates, enrollment parsing and quaternion operations.
+background/stale-input gates, enrollment parsing, quaternion operations and rejection of mixed-precision
+gravity calibration.
 Additional session tests use a fake HTTPS endpoint and real localhost UDP sockets
 to verify immediate neutral, stop packets, cancellation of late arm replies, stale
 telemetry shutdown, counter exhaustion without rearm, and read-only rejection.
-The APK build, 21 unit tests and Android lint are checked by GitHub Actions.
+The APK build, 22 unit tests and Android lint are checked by GitHub Actions.
 Three Android 15 emulator tests verify visible controls, full-screen return/stop,
 and MediaCodec rendering of a generated six-picture H.264 pattern, including
 masking retained decoder pictures when no subscription is active. Test fixtures

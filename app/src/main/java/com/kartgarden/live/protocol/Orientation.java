@@ -63,6 +63,7 @@ public final class Orientation {
   private long previousTime;
   private int calibrationCount;
   private boolean calibrating;
+  private boolean calibrationGravityUsable = true;
   public String detail = "Nintendo · not calibrated";
 
   public void reset() {
@@ -76,6 +77,7 @@ public final class Orientation {
     previousPrecision = null;
     calibrating = false;
     calibrationCount = 0;
+    calibrationGravityUsable = true;
     detail = "Nintendo · not calibrated";
   }
 
@@ -110,11 +112,17 @@ public final class Orientation {
       if (calibrating) {
         if (norm(s.gyro()) > 3 || t.quaternion == null) {
           calibrationCount = 0;
+          calibrationGravityUsable = true;
           sum = new double[3];
           gravitySum = new double[3];
           detail = "Calibration paused · keep kart still";
           continue;
         }
+        double[] gravity = s.accel().clone();
+        gravity[2] -= 9.81;
+        if ((t.flags & 0x20) == 0 || norm(gravity) < 4 || norm(gravity) > 18)
+          calibrationGravityUsable = false;
+        for (int raw : s.accelRaw()) if (Math.abs(raw) >= 32000) calibrationGravityUsable = false;
         for (int i = 0; i < 3; i++) {
           sum[i] += s.gyro()[i];
           gravitySum[i] += s.accel()[i] - (i == 2 ? 9.81 : 0);
@@ -125,7 +133,7 @@ public final class Orientation {
           bias = new double[3];
           for (int i = 0; i < 3; i++) bias[i] = sum[i] / calibrationCount;
           // Gravity reference is only accepted in the high-precision mode.
-          if ((t.flags & 0x20) != 0) {
+          if (calibrationGravityUsable && (t.flags & 0x20) != 0) {
             double[] g = gravitySum.clone();
             for (int i = 0; i < 3; i++) g[i] /= calibrationCount;
             if (norm(g) >= 4 && norm(g) <= 18) gravityReference = g;
