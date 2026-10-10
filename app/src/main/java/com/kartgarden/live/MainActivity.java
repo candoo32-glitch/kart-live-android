@@ -43,7 +43,7 @@ public final class MainActivity extends Activity implements TextureView.SurfaceT
     private void build(){
         root=column();root.setBackgroundColor(BG);root.setPadding(dp(12),dp(8),dp(12),dp(8));setContentView(root);
         root.setOnApplyWindowInsetsListener((v,insets)->{if(Build.VERSION.SDK_INT>=30){var bars=insets.getInsets(WindowInsets.Type.systemBars());root.setPadding(dp(12)+bars.left,dp(8)+bars.top,dp(12)+bars.right,dp(8)+bars.bottom);}else{root.setPadding(dp(12)+insets.getSystemWindowInsetLeft(),dp(8)+insets.getSystemWindowInsetTop(),dp(12)+insets.getSystemWindowInsetRight(),dp(8)+insets.getSystemWindowInsetBottom());}return insets;});
-        header=row();title=label("Kart Live  ·  Garden",21,MINT);title.setTypeface(null,1);header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        header=row();title=label("Kart Live  ·  Garden",21,MINT);title.setTypeface(null,Typeface.BOLD);header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
         connect=button("Connect",this::toggleConnection);addButton(header,connect);addButton(header,button("Setup",this::setup));root.addView(header);
         health=label("Import client enrollment and gateway CA to get started",12,MUTED);health.setPadding(dp(3),dp(5),0,dp(8));root.addView(health);
         LinearLayout body=row();body.setGravity(Gravity.TOP);root.addView(body,new LinearLayout.LayoutParams(-1,0,1));

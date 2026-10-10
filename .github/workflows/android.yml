@@ -40,6 +40,7 @@ jobs:
             ./gradlew --no-daemon connectedDebugAndroidTest
             adb pull /sdcard/Android/data/com.kartgarden.live/files/screenshots app/build/screenshots
       - name: Upload installable debug APK and reports
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: kart-live-android-debug
