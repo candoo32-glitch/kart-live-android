@@ -21,8 +21,20 @@ Unit tests cover terminal-fragment extraction, sequence gaps/duplicates/wrap,
 frame abandonment, NAL/AUD splitting, telemetry lengths/scales/subsamples,
 battery range, unsigned counters, overflow/exhaustion, nonfinite controls,
 background/stale-input gates, enrollment parsing and quaternion operations.
+Additional session tests use a fake HTTPS endpoint and real localhost UDP sockets
+to verify immediate neutral, stop packets, cancellation of late arm replies, stale
+telemetry shutdown, counter exhaustion without rearm, and read-only rejection.
 The APK build and Android lint are checked by GitHub Actions. These checks do not
 prove hardware behavior. No live kart is armed during repository/build testing.
+
+## Preserved camera recording check
+
+The Java LSP assembler processed a private existing physical-kart recording:
+6,183 packets, 664 assembled frames, zero gaps/damaged/abandoned frames. After
+discarding pictures before the first SPS/IDR, FFmpeg decoded 649 pictures at
+1280×800 with zero decode errors. The recording stays outside this repository.
+This validates native extraction against real packets; it does not establish
+Android hardware decoder performance or live camera-to-screen latency.
 
 ## Android acceptance checklist
 

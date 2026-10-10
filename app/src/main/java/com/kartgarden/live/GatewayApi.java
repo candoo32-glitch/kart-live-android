@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
 
-public final class GatewayApi {
+public final class GatewayApi implements GatewayTransport {
     private final ClientConfig config;
     private final String host;
     private final SSLSocketFactory tls;

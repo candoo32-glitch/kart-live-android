@@ -137,7 +137,7 @@ public final class KartSession implements AutoCloseable {
     @Override public void close(){disconnect();decoder.close();apiWorker.shutdown();motorWorker.shutdownNow();}
     public static final class Connection {
         final ClientConfig config;final String host,profile;volatile boolean alive=true,connected;
-        volatile GatewayApi api;volatile InetAddress address;
+        volatile GatewayTransport api;volatile InetAddress address;
         volatile DatagramSocket video,telemetry,motor;
         final Object streamLock=new Object();volatile long streamGeneration;
         final MotorLease lease=new MotorLease();public final Orientation orientation=new Orientation();
