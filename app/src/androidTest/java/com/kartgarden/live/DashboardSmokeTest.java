@@ -40,6 +40,21 @@ public class DashboardSmokeTest {
             scenario.onActivity(a->{View root=a.getWindow().getDecorView();button(root,"View").performClick();assertEquals(View.GONE,button(root,"Setup").getParent() instanceof View?((View)button(root,"Setup").getParent()).getVisibility():View.VISIBLE);assertNotNull(button(root,"B · Stop"));button(root,"B · Stop").performClick();button(root,"View").performClick();assertEquals(View.VISIBLE,((View)button(root,"Setup").getParent()).getVisibility());});
         }
     }
+    @Test public void rendersSyntheticH264WithoutGateway() throws Exception {
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)) {
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            final KartSession[] session={null};
+            scenario.onActivity(a->{try{var field=MainActivity.class.getDeclaredField("session");field.setAccessible(true);session[0]=(KartSession)field.get(a);}catch(Exception e){throw new AssertionError(e);}});
+            byte[] video;
+            try(var in=InstrumentationRegistry.getInstrumentation().getContext().getAssets().open("synthetic-video.h264")){video=GatewayApi.readLimited(in,2*1024*1024);}
+            for(byte[] unit:com.kartgarden.live.protocol.LspAssembler.accessUnits(video)) {
+                session[0].decoder.feed(unit);android.os.SystemClock.sleep(150);session[0].decoder.drain();
+            }
+            assertEquals("Decoder errors",0,session[0].decoder.errors);
+            assertTrue("At least one H.264 picture rendered",session[0].decoder.rendered>0);
+            assertNull("No kart connection opened",session[0].current());
+        }
+    }
     private void screenshot(String name) throws Exception {
         Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();assertNotNull(image);
         File dir=InstrumentationRegistry.getInstrumentation().getTargetContext().getExternalFilesDir("screenshots");assertNotNull(dir);if(!dir.exists())assertTrue(dir.mkdirs());

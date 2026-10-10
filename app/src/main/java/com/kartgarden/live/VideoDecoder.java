@@ -58,7 +58,7 @@ public final class VideoDecoder {
     public synchronized void drain() {
         if(codec==null)return;
         try { MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();int i;
-            while((i=codec.dequeueOutputBuffer(info,0))>=0){codec.releaseOutputBuffer(i,info.size>0);if(info.size>0)rendered++;}
+            while((i=codec.dequeueOutputBuffer(info,0))>=0){boolean picture=(info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0;codec.releaseOutputBuffer(i,picture);if(picture)rendered++;}
         }catch(Exception e){errors++;releaseCodec();synced=false;}
     }
     public synchronized void close(){reset();surface=null;}
