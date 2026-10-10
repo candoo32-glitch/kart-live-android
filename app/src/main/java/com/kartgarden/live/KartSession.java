@@ -38,9 +38,13 @@ public final class KartSession implements AutoCloseable {
           try {
             if (!c.alive) return;
             c.api = new GatewayApi(config, host, vault.tls());
-            c.address = InetAddress.getByName(host);
-            if (!(c.address instanceof Inet4Address))
+            java.util.Set<InetAddress> peers = new java.util.LinkedHashSet<>();
+            for (InetAddress candidate : InetAddress.getAllByName(host))
+              if (candidate instanceof Inet4Address) peers.add(candidate);
+            if (peers.isEmpty())
               throw new IllegalArgumentException("Use the gateway's IPv4 address");
+            c.address = peers.iterator().next();
+            c.gatewayAddresses = java.util.Collections.unmodifiableSet(peers);
             c.video = socket(41000);
             c.telemetry = socket(41001);
             if (!c.alive) {
@@ -91,7 +95,7 @@ public final class KartSession implements AutoCloseable {
                     int source = video ? c.videoSource : c.telemetrySource;
                     if (source < 0
                         || packet.getPort() != source
-                        || !packet.getAddress().equals(c.address)) continue;
+                        || !c.gatewayAddresses.contains(packet.getAddress())) continue;
                     byte[] data = Arrays.copyOf(packet.getData(), packet.getLength());
                     if (video) {
                       c.videoPackets++;
@@ -423,6 +427,7 @@ public final class KartSession implements AutoCloseable {
     volatile boolean alive = true, connected;
     volatile GatewayTransport api;
     volatile InetAddress address;
+    volatile java.util.Set<InetAddress> gatewayAddresses = java.util.Collections.emptySet();
     volatile DatagramSocket video, telemetry, motor;
     final Object streamLock = new Object();
     volatile long streamGeneration;

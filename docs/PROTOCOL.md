@@ -12,8 +12,10 @@ health profile matches, `wifi_stale` is false and the status poll is fresh. It
 measures the Pi's reception of the kart. Bars use Swift's thresholds -55/-67/-75/-85
 dBm; missing RSSI is shown as unavailable, not zero signal strength.
 
-Only datagrams from the resolved gateway IPv4 address and subscribed mapped source
-ports are accepted. Payloads remain native. Sequence numbers are big-endian bytes
+Only datagrams from the configured hostname’s resolved IPv4 addresses and
+subscribed mapped source ports are accepted. This permits Ethernet/Wi-Fi source
+addresses advertised by the same Pi; motor traffic uses the first resolved IPv4
+address. A literal IP should be the Pi’s preferred LAN interface address. Payloads remain native. Sequence numbers are big-endian bytes
 3–4 with wraparound; duplicate/late video datagrams are ignored. FRAM size minus
 38 gives H.264 length. Kinds 0xb6/0xba/0xbe exclude five prefix/metadata bytes;
 ordinary 0x85 excludes one. Damaged frames are dropped; the decoder waits for IDR.
