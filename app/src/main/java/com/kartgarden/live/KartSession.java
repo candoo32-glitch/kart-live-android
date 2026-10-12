@@ -129,7 +129,12 @@ public final class KartSession implements AutoCloseable {
                           c.orientation.update(t, c.lastImu);
                         }
                       }
-                      recorder.append(t, data);
+                      synchronized (c.orientation) {
+                        recorder.append(
+                            t,
+                            data,
+                            c.orientation.snapshot(c.latest, c.instrumentMode, System.nanoTime()));
+                      }
                     }
                   }
                 } catch (SocketTimeoutException e) {
@@ -233,7 +238,8 @@ public final class KartSession implements AutoCloseable {
     Connection c = connection;
     if (c != null)
       synchronized (c.orientation) {
-        c.orientation.calibrate();
+        long now = System.nanoTime();
+        c.orientation.calibrate(now, c.alive && c.latest != null && age(c.lastImu) < 500);
       }
   }
 
@@ -433,6 +439,7 @@ public final class KartSession implements AutoCloseable {
     volatile long streamGeneration;
     final MotorLease lease = new MotorLease();
     public final Orientation orientation = new Orientation();
+    public volatile int instrumentMode = Orientation.FUSION;
     ScheduledFuture<?> poll, motorTick;
     long armGeneration, lastMotorTick;
     public volatile boolean armed, armPending, cable;

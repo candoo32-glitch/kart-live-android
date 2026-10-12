@@ -1,5 +1,6 @@
 package com.kartgarden.live;
 
+import com.kartgarden.live.protocol.Orientation;
 import com.kartgarden.live.protocol.Telemetry;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -23,7 +24,7 @@ public final class CsvRecorder {
     writer = new BufferedWriter(new FileWriter(file, false));
     rows = bytes = 0;
     writer.write(
-        "utc,packet_type,sample_index,sample_counter,device_clock,flags,accel_raw_x,accel_raw_y,accel_raw_z,gyro_raw_x,gyro_raw_y,gyro_raw_z,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,q_x,q_y,q_z,q_w,battery_bars,cable,raw_packet_hex\n");
+        "utc,packet_type,sample_index,sample_counter,device_clock,flags,accel_raw_x,accel_raw_y,accel_raw_z,gyro_raw_x,gyro_raw_y,gyro_raw_z,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,q_x,q_y,q_z,q_w,battery_bars,cable,candidate_force_x,candidate_force_y,candidate_force_z,candidate_force_norm,calibration_phase,instrument_source,instrument_status,instrument_relative_x,instrument_relative_y,instrument_relative_z,instrument_relative_w,instrument_pitch_deg,instrument_roll_deg,linear_x,linear_y,linear_z,sample_status,accel_quality_last,accel_quality_accepted,accel_quality_rejected,swift_fusion_iteration,raw_packet_hex\n");
     state = "Recording · 0 rows";
   }
 
@@ -31,7 +32,7 @@ public final class CsvRecorder {
     return writer != null;
   }
 
-  public synchronized void append(Telemetry t, byte[] raw) {
+  public synchronized void append(Telemetry t, byte[] raw, Orientation.Snapshot instrument) {
     if (writer == null) return;
     try {
       StringBuilder hex = new StringBuilder();
@@ -64,11 +65,30 @@ public final class CsvRecorder {
           row.append(',');
           if (t.quaternion != null) row.append(t.quaternion[j]);
         }
+        row.append(',').append(t.battery < 0 ? "" : t.battery).append(',').append(t.cable);
+        double[] force = t.samples.isEmpty() ? null : t.samples.get(index).specificForce();
+        appendVector(row, force, 3);
+        row.append(',').append(force == null ? "" : Orientation.norm(force));
         row.append(',')
-            .append(t.battery < 0 ? "" : t.battery)
+            .append(instrument.calibrationPhase())
             .append(',')
-            .append(t.cable)
+            .append(instrument.source())
             .append(',')
+            .append(instrument.status());
+        appendVector(row, instrument.relative(), 4);
+        double[] angles =
+            instrument.relative() == null ? null : Orientation.angles(instrument.relative());
+        appendVector(row, angles, 2);
+        appendVector(row, instrument.linearAcceleration(), 3);
+        row.append(',')
+            .append(instrument.timing())
+            .append(',')
+            .append(instrument.quality())
+            .append(',')
+            .append(instrument.accepted())
+            .append(',')
+            .append(instrument.rejected())
+            .append(",122,")
             .append(hex)
             .append('\n');
         bytes += row.length();
@@ -85,6 +105,13 @@ public final class CsvRecorder {
     } catch (Exception e) {
       stop();
       state = "CSV write failed";
+    }
+  }
+
+  private static void appendVector(StringBuilder row, double[] vector, int count) {
+    for (int i = 0; i < count; i++) {
+      row.append(',');
+      if (vector != null && Double.isFinite(vector[i])) row.append(vector[i]);
     }
   }
 

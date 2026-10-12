@@ -10,7 +10,8 @@ import java.util.Locale;
 public final class InstrumentView extends View {
   private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
   private double[] q = Orientation.identity();
-  private String source = "Nintendo", detail = "Waiting for IMU";
+  private String source = "Fusion", detail = "Waiting for IMU", status = "WAIT_SOURCE";
+  private double[] linear;
   private boolean fresh;
 
   public InstrumentView(Context c) {
@@ -18,11 +19,24 @@ public final class InstrumentView extends View {
     setContentDescription("Kart artificial horizon and three dimensional orientation");
   }
 
-  public void update(double[] value, String mode, String status, boolean fresh) {
-    q = value.clone();
-    source = mode;
-    detail = status;
-    this.fresh = fresh;
+  public void update(Orientation.Snapshot snapshot, boolean telemetryFresh) {
+    fresh = telemetryFresh && "READY".equals(snapshot.status()) && snapshot.relative() != null;
+    q = fresh ? snapshot.relative().clone() : Orientation.identity();
+    linear = telemetryFresh ? snapshot.linearAcceleration() : null;
+    source = snapshot.source();
+    status = telemetryFresh ? snapshot.status() : "WAIT_SOURCE";
+    detail = snapshot.detail();
+    double[] angles = Orientation.angles(q);
+    setContentDescription(
+        "Kart instruments · "
+            + source
+            + " · "
+            + status
+            + " · "
+            + detail
+            + (fresh
+                ? String.format(Locale.ROOT, " · pitch %.2f roll %.2f", angles[0], angles[1])
+                : ""));
     invalidate();
   }
 
@@ -41,17 +55,15 @@ public final class InstrumentView extends View {
     text(c, "INSTRUMENTS · " + source, pad, pad + size, size, 0xff88e2b3);
     double x = q[0], y = q[1], z = q[2], s = q[3];
     // Same native X-right/Y-rear/Z-down basis as Swift: scene (X,-Z,Y).
-    double pitch = Math.asin(Math.max(-1, Math.min(1, 2 * (s * x + y * z))));
-    double roll = Math.atan2(2 * (s * y - x * z), 1 - 2 * (x * x + y * y));
+    double[] angles = Orientation.angles(q);
+    double pitch = Math.toRadians(angles[0]), roll = Math.toRadians(angles[1]);
     double yaw = Math.atan2(2 * (s * z + x * y), 1 - 2 * (y * y + z * z));
     boolean compact = h < 230 * density();
-    float bodyHeight = Math.max(12 * density(), h - 76 * density());
+    float bodyHeight = Math.max(12 * density(), h - 90 * density());
     float radius =
-        compact
-            ? Math.min(w * .17f, bodyHeight * .43f)
-            : Math.min(w * .32f, (bodyHeight * .5f - 18 * density()) / 2);
-    float cx = compact ? w * .27f : w / 2;
-    float cy = compact ? 32 * density() + bodyHeight / 2 : 32 * density() + radius;
+        compact ? Math.min(w * .13f, bodyHeight * .35f) : Math.min(w * .30f, bodyHeight * .14f);
+    float cx = compact ? w * .19f : w / 2;
+    float cy = compact ? 32 * density() + bodyHeight / 2 : 32 * density() + bodyHeight * .16f;
     c.save();
     Path circle = new Path();
     circle.addCircle(cx, cy, radius, Path.Direction.CW);
@@ -79,27 +91,61 @@ public final class InstrumentView extends View {
     c.drawCircle(cx, cy, 4, p);
     text(
         c,
-        String.format(
-            Locale.ROOT, "R %+.1f°  P %+.1f°", Math.toDegrees(roll), Math.toDegrees(pitch)),
+        fresh
+            ? String.format(
+                Locale.ROOT, "R %+.1f°  P %+.1f°", Math.toDegrees(roll), Math.toDegrees(pitch))
+            : status,
         pad,
-        compact ? h - 34 * density() : 32 * density() + radius * 2 + 16 * density(),
+        h - 48 * density(),
         size,
         0xffe5f3e9);
     drawKart(
         c,
-        compact ? w * .75f : w / 2,
-        compact ? cy : 32 * density() + bodyHeight * .78f,
-        compact ? Math.min(w * .14f, bodyHeight * .35f) : Math.min(w * .29f, bodyHeight * .25f));
+        compact ? w * .50f : w / 2,
+        compact ? cy : 32 * density() + bodyHeight * .82f,
+        compact ? Math.min(w * .12f, bodyHeight * .30f) : Math.min(w * .29f, bodyHeight * .11f));
+    drawG(c, compact ? w * .83f : w / 2, compact ? cy : 32 * density() + bodyHeight * .49f, radius);
     text(
         c,
-        String.format(
-            Locale.ROOT, "Heading %+.1f° · %s", Math.toDegrees(yaw), fresh ? "live" : "stale"),
+        linear == null
+            ? "G · waiting for Fusion"
+            : String.format(
+                Locale.ROOT,
+                "G · lateral %+.2f forward %+.2f",
+                linear[0] / 9.81,
+                -linear[1] / 9.81),
+        pad,
+        h - 34 * density(),
+        10 * density(),
+        0xffd4e8df);
+    text(
+        c,
+        fresh
+            ? String.format(Locale.ROOT, "Heading %+.1f° · live", Math.toDegrees(yaw))
+            : "Heading waiting",
         pad,
         h - 20 * density(),
         size,
         0xffd4e8df);
     String truncated = detail.length() > 37 ? detail.substring(0, 37) + "…" : detail;
     text(c, truncated, pad, h - 6 * density(), 10 * density(), 0xffa4bbae);
+  }
+
+  private void drawG(Canvas c, float cx, float cy, float radius) {
+    p.setStyle(Paint.Style.STROKE);
+    p.setStrokeWidth(density());
+    p.setColor(linear == null ? 0xff63786b : 0xff88e2b3);
+    c.drawCircle(cx, cy, radius, p);
+    c.drawCircle(cx, cy, radius / 2, p);
+    c.drawLine(cx - radius, cy, cx + radius, cy, p);
+    c.drawLine(cx, cy - radius, cx, cy + radius, p);
+    p.setStyle(Paint.Style.FILL);
+    if (linear != null) {
+      p.setColor(0xffffc977);
+      float lateral = (float) Math.max(-1.25, Math.min(1.25, linear[0] / 9.81));
+      float forward = (float) Math.max(-1.25, Math.min(1.25, -linear[1] / 9.81));
+      c.drawCircle(cx + lateral * radius / 1.25f, cy - forward * radius / 1.25f, 3 * density(), p);
+    }
   }
 
   private void drawKart(Canvas c, float cx, float cy, float scale) {

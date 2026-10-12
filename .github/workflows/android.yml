@@ -1,7 +1,7 @@
 name: Android checks and APK
 on:
   push:
-    branches: [main]
+    branches: [main, swift-122-fusion-parity]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -22,7 +22,9 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Test, lint and build
-        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+        run: |
+          python3 tools/fetch-swift-fixtures.py
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -41,6 +43,8 @@ jobs:
             mkdir -p app/build/screenshots
             adb pull /data/local/tmp/kart-live-dashboard.png app/build/screenshots/dashboard.png
             adb pull /data/local/tmp/kart-live-setup.png app/build/screenshots/setup.png
+            adb pull /data/local/tmp/kart-live-instrument-held.png app/build/screenshots/instrument-held.png
+            adb pull /data/local/tmp/kart-live-instrument-return.png app/build/screenshots/instrument-return.png
       - name: Upload installable debug APK and reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

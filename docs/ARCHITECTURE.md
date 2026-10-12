@@ -7,7 +7,7 @@ Native Activity/views keep the application small; work never waits on the UI thr
 | --- | --- |
 | `MainActivity` | Landscape camera/dashboard, enrollment/document pickers, display controls, lifecycle and physical controller input |
 | `JoystickView` | Single captured pointer, signed X/Y, neutral on release/cancel |
-| `InstrumentView` | Shared quaternion horizon and projected 3D kart; native axis mapping follows Swift's X-right/Y-rear/Z-down basis |
+| `InstrumentView` | Shared selected-quaternion horizon, projected kart and fusion-predicted linear-acceleration G meter; Swift basis/angles |
 | `CredentialVault` | AES/GCM encryption with Android Keystore, private public-CA file, explicit local forgetting |
 | `GatewayApi` | Bounded HTTPS JSON requests, X-OpenKart-Key, imported CA, default hostname verification, no redirects |
 | `KartSession` | Connection generations, UDP readers, subscription renewal/status, independent motor tick and shutdown |
@@ -15,7 +15,7 @@ Native Activity/views keep the application small; work never waits on the UI thr
 | `LspAssembler` | Native packet sequence tracking, FRAM extraction, terminal metadata exclusion and Annex-B/AUD splitting |
 | `Telemetry` | Battery/IMU decoding, precision flags, native quaternion, all subsamples |
 | `MotorLease` | Counter validation and unchanged signed 32-byte motor packet layout |
-| `Orientation` | Session calibration, gyro integration, conservatively gated experimental relative gravity correction |
+| `Orientation`, `AccelerationQuality`, `InstrumentCalibration` | Swift 122 device-clock fusion, adaptive bias, force-quality gates and one packet-time calibration state |
 | `CsvRecorder` | Opt-in private 20 MB CSV with all subsamples and original telemetry packet hex |
 
 One serial HTTPS worker renews subscriptions every ten seconds and polls status
@@ -39,3 +39,9 @@ Android backup is disabled. Client JSON is encrypted in private SharedPreference
 with a non-exportable AES key. The public CA lives in app-private files. No TLS
 verification bypass, plaintext transport, admin token, hardcoded credential or
 telemetry upload is included. CSV lives in private cache until explicitly exported.
+
+Instrument snapshots are read under the connection's orientation lock by both
+the 100 ms Activity refresh and CSV writer. UDP input updates the engine even
+when recording is off. The Activity ticks calibration timeout/staleness without
+waiting for another packet. The view never runs a separate filter or substitutes
+Nintendo for missing data. See [Swift 122 parity](SWIFT-122-PARITY.md).

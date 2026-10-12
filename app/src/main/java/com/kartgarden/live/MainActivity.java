@@ -41,7 +41,7 @@ public final class MainActivity extends Activity
   private android.hardware.input.InputManager inputManager;
   private LinearLayout driveButtons;
   private float physicalX, physicalY;
-  private int mode;
+  private int mode = Orientation.FUSION;
   private String host, profile;
   private float brightness = 0, contrast = 1, saturation = 1;
   private final Runnable refresh =
@@ -214,7 +214,7 @@ public final class MainActivity extends Activity
     sidebar.addView(telemetry);
     LinearLayout modeRow = row();
     Button source = button("Source", this::selectSource),
-        cal = button("Calibrate", this::calibrate);
+        cal = button("Calibrate all", this::calibrate);
     modeRow.addView(source, new LinearLayout.LayoutParams(0, dp(44), 1));
     modeRow.addView(cal, new LinearLayout.LayoutParams(0, dp(44), 1));
     sidebar.addView(modeRow);
@@ -246,7 +246,19 @@ public final class MainActivity extends Activity
       arm.setText("Arm");
       arm.setBackground(rounded(0xff2b443a));
       telemetry.setText("Battery —   Wi-Fi —\nIMU waiting");
-      instrument.update(Orientation.identity(), "Nintendo", "Waiting for IMU", false);
+      instrument.update(
+          new Orientation.Snapshot(
+              "Fusion",
+              "WAIT_SOURCE",
+              "Waiting for IMU",
+              null,
+              null,
+              "REQUIRED",
+              "WAIT_BIAS",
+              "NOT_EVALUATED",
+              0,
+              0),
+          false);
       videoText.setText("CAMERA · waiting for stream");
       title.setText("Kart Live  ·  Garden");
       health.setText(
@@ -291,13 +303,8 @@ public final class MainActivity extends Activity
             + c.telemetryPackets
             + " packets");
     synchronized (c.orientation) {
-      boolean ready =
-          mode == 0 ? c.latest != null && c.latest.quaternion != null : c.orientation.calibrated();
-      instrument.update(
-          c.orientation.output(c.latest, mode),
-          new String[] {"Nintendo", "Gyro*", "Fusion*"}[mode],
-          ready ? c.orientation.detail : "Calibration required · Nintendo fallback",
-          fresh && ready);
+      c.instrumentMode = mode;
+      instrument.update(c.orientation.snapshot(c.latest, mode, System.nanoTime()), fresh);
     }
     long videoAge = KartSession.age(c.lastVideo);
     boolean noPicture = videoAge > 1500 || session.decoder.rendered == 0;
@@ -336,7 +343,7 @@ public final class MainActivity extends Activity
     }
     physicalHeld = false;
     joystick.neutral();
-    mode = 0;
+    mode = Orientation.FUSION;
     session.connect(config, host, profile, vault);
     update();
   }
@@ -380,22 +387,20 @@ public final class MainActivity extends Activity
       return;
     }
     new AlertDialog.Builder(this)
-        .setTitle("Calibrate instruments")
+        .setTitle("Calibrate all instruments")
         .setMessage(
             "Put this kart on a stable, level surface and keep it still. Calibration stays in this"
                 + " session; it is never shared between karts.")
-        .setPositiveButton("Calibrate", (d, w) -> session.calibrate())
+        .setPositiveButton("Calibrate all", (d, w) -> session.calibrate())
         .setNegativeButton("Cancel", null)
         .show();
   }
 
   private void selectSource() {
     new AlertDialog.Builder(this)
-        .setTitle("Instrument source")
+        .setTitle("Advanced orientation diagnostics")
         .setSingleChoiceItems(
-            new String[] {
-              "Nintendo (default)", "Gyroscope (experimental)", "Fusion (experimental)"
-            },
+            new String[] {"Nintendo", "Gyroscope (experimental)", "Fusion (default)"},
             mode,
             (d, which) -> {
               mode = which;

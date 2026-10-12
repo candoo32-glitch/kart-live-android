@@ -6,7 +6,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class Telemetry {
-  public record Sample(int[] accelRaw, int[] gyroRaw, double[] accel, double[] gyro) {}
+  public record Sample(int[] accelRaw, int[] gyroRaw, double[] accel, double[] gyro) {
+    // Keep native counts/documented decoding unchanged; fusion uses this separate candidate.
+    public double[] specificForce() {
+      return new double[] {accel[0] / 16, accel[1] / 16, accel[2] / 16 - 9.81};
+    }
+  }
 
   public int type, flags, battery = -1, sampleCounter;
   public long deviceClock;

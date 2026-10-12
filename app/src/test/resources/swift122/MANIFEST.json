@@ -1,0 +1,36 @@
+{
+  "swift_source_commit": "1126441d303150371c80a2b4e7afebde4c37b738",
+  "request_elapsed_seconds": 3,
+  "expectations": {
+    "117": {
+      "input_sha256": "5841b2719a1c22333d786bbe56779cb2053ec7e2f14230d8021425191c004164",
+      "packets": 6024,
+      "subsamples": 33431,
+      "comparisons": 1207,
+      "golden_sha256": "d3779451e8bd05b67fb1eaf9cacff41355fe1c5ae17cbb93b851af9dacc929bc"
+    },
+    "118": {
+      "input_sha256": "3529b53f52db47d6da8ca7cf050c5729a609716263a62443ecfd07ea1a3bdeb2",
+      "packets": 4240,
+      "subsamples": 23601,
+      "comparisons": 851,
+      "golden_sha256": "e53546602efebf730eb6cd69cdc6fb0a1ccf2fea31957af830a70f18c6ae6d58"
+    },
+    "122": {
+      "input_sha256": "552ce42071e74182f9044d616f95f44206467047ea22a53754c3b3c58be60435",
+      "packets": 4331,
+      "subsamples": 24241,
+      "comparisons": 869,
+      "golden_sha256": "2d434fc53710c2ce3451f5b455141df6a0a6d355548ad8d5d17591edc3cb106e"
+    }
+  },
+  "source_files": {
+    "Sources/IMUAttitudeMath.swift": "48b46fd90ee8b19c08e84aa984a1d8d44a976942b9d737b0743aa2dda3cb3b72",
+    "Sources/InstrumentAttitude.swift": "067988677134ae3869a8f4e490645c44d21578ed9a8beed438a04154a4246dbd",
+    "Sources/InstrumentCalibration.swift": "5918c5f9941ba7c9cd4470a1fece809f6f43b1c68f26a08f03e74a0d04460666",
+    "Sources/KartTelemetry.swift": "c73cf9d4ec7fab9e88fd48184f6ccc48ee60d0ab9eeee818c6780116f01049f5",
+    "Sources/IMUAccelerationQuality.swift": "00811e6b07803da364269240a736f596b8897cfa3463127073508304d46ed24a",
+    "Sources/KartCSVRecorder.swift": "9a29e9d476b6b2fd96c70bbe741041d6c87e653388694fabcc5b1222f74826ca",
+    "Tests/LiveInstrumentRunner.swift": "03431fca37188d6e4d051b5c46f77ad5c7f6c348eb987985113f84a296e8a759"
+  }
+}

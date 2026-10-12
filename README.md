@@ -2,7 +2,7 @@
 
 Native Android client for [Kart Garden](https://github.com/candoo32-glitch/kart-garden),
 based on the [Swift Playgrounds client](https://github.com/candoo32-glitch/kart-live-swift-playgrounds)
-Iteration 117. Android 8.0 (API 26) or newer; landscape phones and tablets.
+Iteration 122 fusion/calibration (Android 0.2.0). Android 8.0 (API 26) or newer; landscape phones and tablets.
 
 ## What it does
 
@@ -15,8 +15,8 @@ Iteration 117. Android 8.0 (API 26) or newer; landscape phones and tablets.
 - Touch joystick and A/B controls; Android gamepad left stick, A and B.
 - Explicit movement confirmation, reserved native motor counters, neutral on
   release, disarm on background/focus loss, and local stale-session/input checks.
-- Shared Nintendo-quaternion horizon and projected 3D kart, per-session still
-  calibration, optional experimental gyro/fusion displays.
+- Shared Fusion-default horizon, projected 3D kart and body linear-acceleration G meter.
+  CALIBRATE ALL initializes session references; Advanced source comparisons remain available.
 - Opt-in bounded IMU CSV recording of all subsamples and export through Android's
   document picker. No Android storage permission or embedded client key needed.
 
@@ -40,7 +40,7 @@ Iteration 117. Android 8.0 (API 26) or newer; landscape phones and tablets.
 5. Power on the selected kart. **Setup → Choose saved kart** loads gateway profile
    names once connected; blank profile ID follows the active profile at subscription
    renewal. Selection receives a saved profile; it does not switch the Pi radio.
-6. For instruments, keep the kart level and still and tap **Calibrate**. For driving,
+6. For instruments, keep the kart level and still and tap **Calibrate all**. For driving,
    release the joystick and confirm **Arm**. A requests that confirmation; B/STOP
    disarms. No connection, launch, calibration or credential import arms automatically.
 
@@ -55,6 +55,7 @@ Use JDK 17, Android SDK platform 35 / build-tools 35.0.0, and the checked-in
 Gradle 8.11.1 wrapper (distribution SHA-256 verified). Android Gradle Plugin 8.9.2:
 
 ```sh
+python3 tools/fetch-swift-fixtures.py
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
@@ -67,3 +68,10 @@ The Android port is a new implementation, not a device-validated copy of the iPa
 app. Physical video decoding, gamepad behavior, orientation signs and live driving
 must be checked on Android hardware. Do not interpret experimental fusion as a
 validated attitude estimate or battery bars as a calibrated percentage.
+
+## Swift 122 fusion parity
+
+[Port details, production-code comparisons and test scope](docs/SWIFT-122-PARITY.md).
+The production Java engine is checked against the actual Swift 122 recorder on
+all original 117/118/122 native packets. Live gateway capture testing is passive;
+no kart is automatically armed. Physical Android display acceptance remains required.

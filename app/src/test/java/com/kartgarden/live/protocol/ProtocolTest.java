@@ -208,17 +208,14 @@ public class ProtocolTest {
   }
 
   @Test
-  public void mixedPrecisionCalibrationCannotCreateGravityReference() {
+  public void mixedPrecisionUsesTheValidatedScale16Candidate() {
     Orientation orientation = new Orientation();
-    orientation.calibrate();
-    byte[] low = imu(1);
-    low[3] = 0x40;
-    long now = 1_000_000_000L;
-    orientation.update(Telemetry.parse(low), now);
-    Telemetry high = Telemetry.parse(imu(1));
-    for (int i = 0; i < 49; i++) orientation.update(high, now += 10_000_000L);
+    for (int i = 0; i < 150; i++) {
+      long now = i * 36_000_000L;
+      if (i == 90) orientation.calibrate(now, true);
+      orientation.update(OrientationTest.packet(i, true, i >= 95, 0, 0), now);
+    }
     assertTrue(orientation.calibrated());
-    orientation.update(high, now + 10_000_000L);
-    assertTrue(orientation.detail.contains("no validated gravity reference"));
+    assertNotNull(orientation.output(null, Orientation.FUSION));
   }
 }

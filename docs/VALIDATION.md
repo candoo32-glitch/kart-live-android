@@ -1,5 +1,10 @@
 # Validation and Swift parity
 
+Current Android 0.2.0 ports the Swift 122 fusion/calibration path. Read the
+[production-code parity and new tests](SWIFT-122-PARITY.md). Earlier validation
+below describes the preserved original Android implementation and its prior scope.
+
+
 Implemented from Swift Playgrounds Iteration 117 and the gateway source. This is
 an Android implementation of the core client, with the following differences:
 
@@ -12,7 +17,7 @@ an Android implementation of the core client, with the following differences:
 | Native virtual controller | Android touch joystick; Android joystick/A/B events |
 | SceneKit kart model | Canvas projection of a 3D wireframe kart |
 | Nintendo instruments | Shared native relative quaternion and still calibration |
-| Experimental gyro/fusion | Simpler isolated Android implementation; arrival-based timing, all subsamples, high-precision gravity gates; not exact estimator or CSV-column parity |
+| Experimental gyro/fusion | Swift 122 device-clock subsamples, scale16 specific force, adaptive bias, gravity correction and shared calibration; direct numerical parity tests; Android CSV remains a different schema |
 | Advanced passive fusion audits | Not ported; do not claim identical experimental results |
 | CSV recording/share | All subsamples/native packet hex, 20 MB cap, Android document export; new schema |
 | Optional raw TCP video receiver | Not ported; production UDP subscription is implemented |
@@ -54,7 +59,7 @@ Use a real Android phone/tablet on the permitted gateway LAN:
   stale camera. Reconnect after Wi-Fi/router changes and gateway restarts.
 - Confirm decoder recovery after real packet loss and repeated camera sessions,
   including the 1280×800-to-720 crop on the device's specific hardware decoder.
-- Check calibration and known physical pitch/roll/yaw. Nintendo remains the default;
+- Check calibration and known physical pitch/roll/yaw. Fusion is now the default;
   gyro drift, gravity sign and timing assumptions need independent validation.
 - Record/export CSV and confirm multiple samples/precision transitions survive.
 - In a safe physical test with explicit operator approval, verify forward/reverse,
