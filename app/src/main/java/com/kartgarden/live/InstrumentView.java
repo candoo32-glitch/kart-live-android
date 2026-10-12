@@ -12,7 +12,12 @@ public final class InstrumentView extends View {
   private double[] q = Orientation.identity();
   private String source = "Fusion", detail = "Waiting for IMU", status = "WAIT_SOURCE";
   private double[] linear;
-  private boolean fresh;
+  private boolean fresh, model;
+
+  public void modelOnly() {
+    model = true;
+    invalidate();
+  }
 
   public InstrumentView(Context c) {
     super(c);
@@ -50,20 +55,26 @@ public final class InstrumentView extends View {
   @Override
   protected void onDraw(Canvas c) {
     float w = getWidth(), h = getHeight(), pad = 16 * density(), size = 12 * density();
-    p.setColor(0xff1c302b);
+    p.setColor(0xff19212b);
     c.drawRoundRect(0, 0, w, h, 18, 18, p);
-    text(c, "INSTRUMENTS · " + source, pad, pad + size, size, 0xff88e2b3);
+    if (model) {
+      drawKart(c, w / 2, h * .47f, Math.min(w * .30f, h * .29f));
+      centered(
+          c,
+          "3D KART · " + (fresh ? source.toUpperCase(Locale.ROOT) : "WAITING"),
+          w / 2,
+          h - 12 * density(),
+          10 * density(),
+          0xffccd7e2);
+      return;
+    }
     double x = q[0], y = q[1], z = q[2], s = q[3];
     // Same native X-right/Y-rear/Z-down basis as Swift: scene (X,-Z,Y).
     double[] angles = Orientation.angles(q);
     double pitch = Math.toRadians(angles[0]), roll = Math.toRadians(angles[1]);
     double yaw = Math.atan2(2 * (s * z + x * y), 1 - 2 * (y * y + z * z));
-    boolean compact = h < 230 * density();
-    float bodyHeight = Math.max(12 * density(), h - 90 * density());
-    float radius =
-        compact ? Math.min(w * .13f, bodyHeight * .35f) : Math.min(w * .30f, bodyHeight * .14f);
-    float cx = compact ? w * .19f : w / 2;
-    float cy = compact ? 32 * density() + bodyHeight / 2 : 32 * density() + bodyHeight * .16f;
+    float radius = Math.min(w * .36f, h * .20f);
+    float cx = w / 2, cy = radius + 10 * density();
     c.save();
     Path circle = new Path();
     circle.addCircle(cx, cy, radius, Path.Direction.CW);
@@ -89,52 +100,40 @@ public final class InstrumentView extends View {
     c.drawLine(cx - radius * .6f, cy, cx - radius * .17f, cy, p);
     c.drawLine(cx + radius * .17f, cy, cx + radius * .6f, cy, p);
     c.drawCircle(cx, cy, 4, p);
-    text(
+    float caption = cy + radius + 15 * density();
+    centered(c, "ARTIFICIAL HORIZON", cx, caption, 10 * density(), 0xffccd7e2);
+    centered(
         c,
-        fresh
-            ? String.format(
-                Locale.ROOT, "R %+.1f°  P %+.1f°", Math.toDegrees(roll), Math.toDegrees(pitch))
-            : status,
-        pad,
-        h - 48 * density(),
-        size,
-        0xffe5f3e9);
-    drawKart(
-        c,
-        compact ? w * .50f : w / 2,
-        compact ? cy : 32 * density() + bodyHeight * .82f,
-        compact ? Math.min(w * .12f, bodyHeight * .30f) : Math.min(w * .29f, bodyHeight * .11f));
-    drawG(c, compact ? w * .83f : w / 2, compact ? cy : 32 * density() + bodyHeight * .49f, radius);
-    text(
+        source.toUpperCase(Locale.ROOT) + " · " + status,
+        cx,
+        caption + 15 * density(),
+        9 * density(),
+        fresh ? 0xff6ee7a0 : 0xffffbd66);
+    float gy = h - radius - 34 * density();
+    drawG(c, cx, gy, radius);
+    centered(c, "G-FORCE", cx, gy + radius + 15 * density(), 10 * density(), 0xffccd7e2);
+    centered(
         c,
         linear == null
-            ? "G · waiting for Fusion"
+            ? "Waiting for calibrated IMU"
             : String.format(
-                Locale.ROOT,
-                "G · lateral %+.2f forward %+.2f",
-                linear[0] / 9.81,
-                -linear[1] / 9.81),
-        pad,
-        h - 34 * density(),
-        10 * density(),
-        0xffd4e8df);
-    text(
-        c,
-        fresh
-            ? String.format(Locale.ROOT, "Heading %+.1f° · live", Math.toDegrees(yaw))
-            : "Heading waiting",
-        pad,
-        h - 20 * density(),
-        size,
-        0xffd4e8df);
-    String truncated = detail.length() > 37 ? detail.substring(0, 37) + "…" : detail;
-    text(c, truncated, pad, h - 6 * density(), 10 * density(), 0xffa4bbae);
+                Locale.ROOT, "Lateral %+.2f  Forward %+.2f G", linear[0] / 9.81, -linear[1] / 9.81),
+        cx,
+        h - 6 * density(),
+        9 * density(),
+        0xff9aa8b7);
+  }
+
+  private void centered(Canvas c, String value, float x, float y, float size, int color) {
+    p.setTextAlign(Paint.Align.CENTER);
+    text(c, value, x, y, size, color);
+    p.setTextAlign(Paint.Align.LEFT);
   }
 
   private void drawG(Canvas c, float cx, float cy, float radius) {
     p.setStyle(Paint.Style.STROKE);
     p.setStrokeWidth(density());
-    p.setColor(linear == null ? 0xff63786b : 0xff88e2b3);
+    p.setColor(linear == null ? 0xff657588 : 0xff55d5ed);
     c.drawCircle(cx, cy, radius, p);
     c.drawCircle(cx, cy, radius / 2, p);
     c.drawLine(cx - radius, cy, cx + radius, cy, p);
@@ -149,41 +148,102 @@ public final class InstrumentView extends View {
   }
 
   private void drawKart(Canvas c, float cx, float cy, float scale) {
-    double[][] vertices = {
-      {-.7, -1, -.2},
-      {.7, -1, -.2},
-      {.7, 1, -.2},
-      {-.7, 1, -.2},
-      {-.7, -1, .2},
-      {.7, -1, .2},
-      {.7, 1, .2},
-      {-.7, 1, .2}
+    p.setColor(0xff203440);
+    p.setStrokeWidth(density());
+    for (int i = -3; i <= 3; i++) {
+      c.drawLine(cx - scale * 2, cy + i * scale * .22f, cx + scale * 2, cy + i * scale * .22f, p);
+    }
+    box(c, cx, cy, scale, 0, 0, 0, .62, 1.08, .12, 0xffc92732);
+    box(c, cx, cy, scale, 0, -.56, -.18, .38, .48, .16, 0xffee3741);
+    box(c, cx, cy, scale, -.52, .05, -.16, .17, .72, .14, 0xffe8eef0);
+    box(c, cx, cy, scale, .52, .05, -.16, .17, .72, .14, 0xffe8eef0);
+    box(c, cx, cy, scale, 0, .25, -.42, .25, .26, .24, 0xff3160ba);
+    // Seated driver and the distinctive raised camera mast.
+    ball(c, cx, cy, scale, 0, .22, -.78, .19, 0xffe5ae87);
+    ball(c, cx, cy, scale, 0, .24, -.92, .20, 0xffea303c);
+    box(c, cx, cy, scale, 0, .53, -.59, .035, .035, .55, 0xffe7edf0);
+    box(c, cx, cy, scale, 0, .53, -1.12, .18, .12, .12, 0xffe7edf0);
+    ball(c, cx, cy, scale, 0, .39, -1.12, .075, 0xff25394e);
+    for (double x : new double[] {-.69, .69})
+      for (double y : new double[] {-.70, .70}) {
+        ball(c, cx, cy, scale, x, y, 0, .23, 0xff0c1118);
+        ball(c, cx, cy, scale, x, y, 0, .105, 0xffa8b4bf);
+      }
+  }
+
+  private float[] point(double[] v, float cx, float cy, float scale) {
+    double[] r = Orientation.rotate(q, v);
+    return new float[] {
+      cx + (float) (r[0] + .25 * r[1]) * scale, cy + (float) (.45 * r[1] + r[2]) * scale
     };
-    float[][] points = new float[8][2];
-    // A fixed viewing tilt gives depth; the live quaternion rotates the body first.
-    for (int i = 0; i < 8; i++) {
-      double[] v = Orientation.rotate(q, vertices[i]);
-      points[i][0] = cx + (float) (v[0] + .25 * v[1]) * scale;
-      points[i][1] = cy + (float) (v[1] * .45 + v[2]) * scale;
-    }
-    p.setColor(fresh ? 0xff88e2b3 : 0xff63786b);
-    p.setStrokeWidth(3);
-    for (int[] edge :
-        new int[][] {
-          {0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6},
-          {3, 7}
-        })
-      c.drawLine(points[edge[0]][0], points[edge[0]][1], points[edge[1]][0], points[edge[1]][1], p);
-    p.setColor(0xffffc977);
-    c.drawLine(points[0][0], points[0][1], points[1][0], points[1][1], p);
-    for (int i = 0; i < 4; i++) {
-      p.setColor(0xff101b19);
-      c.drawCircle(points[i][0], points[i][1], 7, p);
-      p.setColor(0xff88e2b3);
-      p.setStyle(Paint.Style.STROKE);
-      c.drawCircle(points[i][0], points[i][1], 7, p);
+  }
+
+  private void ball(
+      Canvas c,
+      float cx,
+      float cy,
+      float scale,
+      double x,
+      double y,
+      double z,
+      double r,
+      int color) {
+    float[] center = point(new double[] {x, y, z}, cx, cy, scale);
+    p.setStyle(Paint.Style.FILL);
+    p.setColor(color);
+    c.drawCircle(center[0], center[1], (float) r * scale, p);
+  }
+
+  private void box(
+      Canvas c,
+      float cx,
+      float cy,
+      float scale,
+      double x,
+      double y,
+      double z,
+      double hx,
+      double hy,
+      double hz,
+      int color) {
+    double[][] vertices = new double[8][3];
+    for (int i = 0; i < 8; i++)
+      vertices[i] =
+          new double[] {
+            x + ((i & 1) == 0 ? -hx : hx),
+            y + ((i & 2) == 0 ? -hy : hy),
+            z + ((i & 4) == 0 ? -hz : hz)
+          };
+    int[][] faces = {
+      {0, 1, 3, 2}, {4, 6, 7, 5}, {0, 4, 5, 1}, {2, 3, 7, 6}, {0, 2, 6, 4}, {1, 5, 7, 3}
+    };
+    java.util.Arrays.sort(faces, (a, b) -> Double.compare(depth(vertices, a), depth(vertices, b)));
+    for (int[] face : faces) {
+      Path shape = new Path();
+      for (int i = 0; i < 4; i++) {
+        float[] v = point(vertices[face[i]], cx, cy, scale);
+        if (i == 0) shape.moveTo(v[0], v[1]);
+        else shape.lineTo(v[0], v[1]);
+      }
+      shape.close();
+      float shade = face[0] >= 4 ? 1f : .76f;
+      p.setColor(
+          Color.rgb(
+              (int) (Color.red(color) * shade),
+              (int) (Color.green(color) * shade),
+              (int) (Color.blue(color) * shade)));
       p.setStyle(Paint.Style.FILL);
+      c.drawPath(shape, p);
     }
+  }
+
+  private double depth(double[][] vertices, int[] face) {
+    double sum = 0;
+    for (int i : face) {
+      double[] r = Orientation.rotate(q, vertices[i]);
+      sum += r[1] - .45 * r[2];
+    }
+    return sum;
   }
 
   private float density() {

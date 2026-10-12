@@ -17,11 +17,11 @@ public final class MainActivity extends Activity
     implements TextureView.SurfaceTextureListener,
         android.hardware.input.InputManager.InputDeviceListener {
   private static final int IMPORT_CLIENT = 1, IMPORT_CA = 2, EXPORT_CSV = 3;
-  private static final int BG = 0xff111b1a,
-      CARD = 0xff1c302b,
-      MINT = 0xff88e2b3,
-      TEXT = 0xffe5f3e9,
-      MUTED = 0xffa4bbae;
+  private static final int BG = 0xff0b1118,
+      CARD = 0xff19212b,
+      MINT = 0xff55d5ed,
+      TEXT = 0xffedf2f7,
+      MUTED = 0xff9aa8b7;
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService files = Executors.newSingleThreadExecutor();
   private KartSession session;
@@ -34,7 +34,7 @@ public final class MainActivity extends Activity
   private Surface surface;
   private TextView title, health, videoText, empty, stats, telemetry, recordText;
   private Button connect, arm, record;
-  private InstrumentView instrument;
+  private InstrumentView instrument, kartModel;
   private JoystickView joystick;
   private boolean resumed, fullScreen, controls = true, physicalHeld;
   private int physicalDevice = -1;
@@ -113,7 +113,7 @@ public final class MainActivity extends Activity
     b.setMinHeight(dp(44));
     b.setMinimumHeight(dp(44));
     b.setPadding(dp(9), 0, dp(9), 0);
-    b.setBackground(rounded(0xff2b443a));
+    b.setBackground(rounded(0xff243342));
     b.setOnClickListener(v -> action.run());
     return b;
   }
@@ -145,96 +145,147 @@ public final class MainActivity extends Activity
           return insets;
         });
     header = row();
-    title = label("Kart Live  ·  Garden", 21, MINT);
+    title = label("KART LIVE", 18, TEXT);
     title.setTypeface(null, Typeface.BOLD);
-    title.setMaxLines(1);
-    title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    title.setLetterSpacing(.08f);
     header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+    record = button("Diagnostics", this::toggleRecording);
+    addButton(header, record);
+    addButton(header, button("Share CSV", this::exportCsv));
+    addButton(header, button("Network", this::setup));
     connect = button("Connect", this::toggleConnection);
+    connect.setBackground(rounded(0xff087f9a));
     addButton(header, connect);
-    addButton(header, button("Setup", this::setup));
     root.addView(header);
-    health = label("Import client enrollment and gateway CA to get started", 12, MUTED);
+    health = label("OFFLINE · Import client enrollment and gateway CA in Network", 11, MUTED);
     health.setMaxLines(1);
     health.setEllipsize(android.text.TextUtils.TruncateAt.END);
-    health.setPadding(dp(3), dp(5), 0, dp(8));
+    health.setPadding(dp(3), dp(3), 0, dp(6));
     root.addView(health);
     LinearLayout body = row();
     body.setGravity(Gravity.TOP);
     root.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
+    LinearLayout videoColumn = column();
+    body.addView(videoColumn, new LinearLayout.LayoutParams(0, -1, 1));
     camera = new FrameLayout(this);
-    camera.setBackground(rounded(0xff081310));
+    camera.setBackground(rounded(0xff090e16));
     camera.setClipToOutline(true);
-    body.addView(camera, new LinearLayout.LayoutParams(0, -1, 2.6f));
+    videoColumn.addView(camera, new LinearLayout.LayoutParams(-1, 0, 1));
     texture = new TextureView(this);
     texture.setSurfaceTextureListener(this);
     camera.addView(texture, new FrameLayout.LayoutParams(-1, -1));
     texture.setOnClickListener(v -> fullScreen());
-    empty = label("◉\nKART LIVE", 18, MUTED);
-    empty.setBackgroundColor(0xff081310);
-    empty.setPadding(dp(140), dp(54), dp(145), dp(54));
-    empty.setMaxLines(2);
+    empty = label("Waiting for camera", 16, MUTED);
+    empty.setBackgroundColor(0xff090e16);
     empty.setGravity(Gravity.CENTER);
     camera.addView(empty, new FrameLayout.LayoutParams(-1, -1));
     empty.setOnClickListener(v -> fullScreen());
-    videoText = label("CAMERA · waiting for stream", 12, TEXT);
-    videoText.setPadding(dp(12), dp(8), dp(12), dp(8));
-    videoText.setBackgroundColor(0x99111b1a);
+    videoText = label("CAMERA · waiting for stream", 10, TEXT);
+    videoText.setPadding(dp(10), dp(8), dp(10), dp(8));
+    videoText.setBackgroundColor(0x880b1118);
     camera.addView(videoText, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
     joystick = new JoystickView(this);
     joystick.listener((x, y) -> session.input(x, y));
     FrameLayout.LayoutParams joy =
-        new FrameLayout.LayoutParams(dp(126), dp(126), Gravity.BOTTOM | Gravity.START);
-    joy.setMargins(dp(8), 0, 0, dp(7));
+        new FrameLayout.LayoutParams(dp(112), dp(112), Gravity.BOTTOM | Gravity.START);
+    joy.setMargins(dp(12), 0, 0, dp(12));
     camera.addView(joystick, joy);
-    LinearLayout tools = row();
-    addButton(tools, button("View", this::fullScreen));
-    addButton(tools, button("Look", this::videoAdjustments));
-    FrameLayout.LayoutParams topTools =
-        new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-    topTools.setMargins(0, dp(38), dp(8), 0);
-    camera.addView(tools, topTools);
+    // A fullscreen affordance stays inside the camera in both layouts.
+    Button view = button("View", this::fullScreen);
+    FrameLayout.LayoutParams viewPosition =
+        new FrameLayout.LayoutParams(-2, dp(40), Gravity.TOP | Gravity.END);
+    viewPosition.setMargins(0, dp(34), dp(8), 0);
+    camera.addView(view, viewPosition);
     driveButtons = row();
-    Button a = button("A · Arm", this::confirmArm), b = button("B · Stop", this::emergencyStop);
-    b.setBackground(rounded(0xff79443c));
-    addButton(driveButtons, a);
+    addButton(driveButtons, button("A", this::confirmArm));
+    Button b = button("B", this::emergencyStop);
+    b.setBackground(rounded(0xff963d46));
     addButton(driveButtons, b);
-    FrameLayout.LayoutParams tp =
+    FrameLayout.LayoutParams drivePosition =
         new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
-    tp.setMargins(0, 0, dp(8), dp(8));
-    camera.addView(driveButtons, tp);
-    sidebar = column();
-    LinearLayout.LayoutParams side = new LinearLayout.LayoutParams(0, -1, 1.15f);
-    side.setMargins(dp(10), 0, 0, 0);
-    body.addView(sidebar, side);
-    instrument = new InstrumentView(this);
-    sidebar.addView(instrument, new LinearLayout.LayoutParams(-1, 0, 1));
-    telemetry = label("Battery —   Wi-Fi —\nIMU waiting", 11, MUTED);
-    telemetry.setPadding(dp(8), dp(5), dp(3), dp(3));
-    sidebar.addView(telemetry);
-    LinearLayout modeRow = row();
-    Button source = button("Source", this::selectSource),
-        cal = button("Calibrate all", this::calibrate);
-    modeRow.addView(source, new LinearLayout.LayoutParams(0, dp(44), 1));
-    modeRow.addView(cal, new LinearLayout.LayoutParams(0, dp(44), 1));
-    sidebar.addView(modeRow);
+    drivePosition.setMargins(0, 0, dp(12), dp(12));
+    camera.addView(driveButtons, drivePosition);
     footer = row();
-    arm = button("Arm", this::confirmArm);
+    arm = button("ARM", this::confirmArm);
+    arm.setBackground(rounded(0xffaa651a));
     addButton(footer, arm);
-    Button stop = button("STOP", this::emergencyStop);
-    stop.setBackground(rounded(0xff79443c));
+    Button stop = button("EMERGENCY STOP", this::emergencyStop);
+    stop.setBackground(rounded(0xffae3445));
     addButton(footer, stop);
-    record = button("Record CSV", this::toggleRecording);
-    addButton(footer, record);
-    addButton(footer, button("Export", this::exportCsv));
-    addButton(footer, button("Details", this::details));
+    recordText = label("DISARMED", 10, MUTED);
+    footer.addView(recordText, new LinearLayout.LayoutParams(0, -2, 1));
+    addButton(footer, button("Video Controls", this::videoAdjustments));
+    addButton(footer, button("Hide Controls", this::toggleControls));
+    HorizontalScrollView controlStrip = new HorizontalScrollView(this);
+    controlStrip.setHorizontalScrollBarEnabled(false);
+    controlStrip.addView(footer);
+    videoColumn.addView(controlStrip, new LinearLayout.LayoutParams(-1, dp(48)));
+    sidebar = column();
+    int screenWidth =
+        (int)
+            (getResources().getDisplayMetrics().widthPixels
+                / getResources().getDisplayMetrics().density);
+    int sideWidth = Math.max(180, Math.min(255, Math.round(screenWidth * .22f)));
+    LinearLayout.LayoutParams side = new LinearLayout.LayoutParams(dp(sideWidth), -1);
+    side.setMargins(dp(8), 0, 0, 0);
+    body.addView(sidebar, side);
+    ScrollView gaugeScroll = new ScrollView(this);
+    gaugeScroll.setFillViewport(false);
+    gaugeScroll.setVerticalScrollBarEnabled(false);
+    LinearLayout gauges = column();
+    gauges.setBackground(rounded(CARD));
+    instrument = new InstrumentView(this);
+    gauges.addView(instrument, new LinearLayout.LayoutParams(-1, dp(350)));
+    Button cal = button("Calibrate all", this::calibrate);
+    LinearLayout.LayoutParams calParams = new LinearLayout.LayoutParams(-1, dp(40));
+    calParams.setMargins(dp(16), 0, dp(16), dp(6));
+    gauges.addView(cal, calParams);
+    telemetry = label("Battery —   Wi-Fi —", 10, MUTED);
+    telemetry.setGravity(Gravity.CENTER);
+    telemetry.setPadding(dp(6), dp(4), dp(6), dp(8));
+    gauges.addView(telemetry);
+    Button advanced = button("Advanced diagnostics", this::advancedDiagnostics);
+    gauges.addView(advanced, new LinearLayout.LayoutParams(-1, dp(40)));
+    gaugeScroll.addView(gauges);
+    sidebar.addView(gaugeScroll, new LinearLayout.LayoutParams(-1, 0, 3));
+    kartModel = new InstrumentView(this);
+    kartModel.modelOnly();
+    LinearLayout.LayoutParams modelParams = new LinearLayout.LayoutParams(-1, 0, 2);
+    modelParams.setMargins(0, dp(6), 0, 0);
+    sidebar.addView(kartModel, modelParams);
     stats = label("No stream", 10, MUTED);
-    stats.setPadding(dp(8), 0, 0, 0);
-    footer.addView(stats, new LinearLayout.LayoutParams(0, -2, 1));
-    root.addView(footer);
-    recordText = label("DISARMED · credentials stay on this device", 10, MUTED);
-    root.addView(recordText);
     update();
+  }
+
+  private void toggleControls() {
+    controls = !controls;
+    emergencyStop();
+    joystick.setVisibility(controls ? View.VISIBLE : View.GONE);
+    driveButtons.setVisibility(controls ? View.VISIBLE : View.GONE);
+    Button toggle = findControlToggle(footer);
+    if (toggle != null) toggle.setText(controls ? "Hide Controls" : "Show Controls");
+  }
+
+  private Button findControlToggle(LinearLayout layout) {
+    for (int i = 0; i < layout.getChildCount(); i++) {
+      View child = layout.getChildAt(i);
+      if (child instanceof Button b
+          && (b.getText().equals("Hide Controls") || b.getText().equals("Show Controls"))) return b;
+    }
+    return null;
+  }
+
+  private void advancedDiagnostics() {
+    new AlertDialog.Builder(this)
+        .setTitle("Advanced diagnostics")
+        .setItems(
+            new String[] {"Orientation source", "Connection and IMU details"},
+            (dialog, which) -> {
+              if (which == 0) selectSource();
+              else details();
+            })
+        .setNegativeButton("Close", null)
+        .show();
   }
 
   private void update() {
@@ -243,8 +294,8 @@ public final class MainActivity extends Activity
     else if (physicalHeld && hasWindowFocus()) session.input(physicalX, physicalY);
     connect.setText(c != null && c.alive ? "Disconnect" : "Connect");
     if (c == null) {
-      arm.setText("Arm");
-      arm.setBackground(rounded(0xff2b443a));
+      arm.setText("ARM");
+      arm.setBackground(rounded(0xff243342));
       telemetry.setText("Battery —   Wi-Fi —\nIMU waiting");
       instrument.update(
           new Orientation.Snapshot(
@@ -259,20 +310,33 @@ public final class MainActivity extends Activity
               0,
               0),
           false);
+      kartModel.update(
+          new Orientation.Snapshot(
+              "Fusion",
+              "WAIT_SOURCE",
+              "Waiting for IMU",
+              null,
+              null,
+              "REQUIRED",
+              "WAIT_BIAS",
+              "NOT_EVALUATED",
+              0,
+              0),
+          false);
       videoText.setText("CAMERA · waiting for stream");
-      title.setText("Kart Live  ·  Garden");
+      title.setText("KART LIVE");
       health.setText(
           config == null
-              ? "Import client JSON and the public gateway CA under Setup"
+              ? "Import client JSON and the public gateway CA in Network"
               : "Ready · " + host + " · " + config.permission() + " permission");
       stats.setText("No stream");
-      recordText.setText("DISARMED · " + session.recorder.state);
+      recordText.setText("DISARMED");
       empty.setVisibility(View.VISIBLE);
       return;
     }
     boolean fresh = KartSession.age(c.lastImu) < 1000,
         statusFresh = KartSession.age(c.lastStatus) < 1800;
-    title.setText(c.name + "  ·  Kart Live");
+    title.setText("KART LIVE");
     String bars = "—";
     Integer rssi = statusFresh ? c.rssi : null;
     if (rssi != null) {
@@ -304,12 +368,14 @@ public final class MainActivity extends Activity
             + " packets");
     synchronized (c.orientation) {
       c.instrumentMode = mode;
-      instrument.update(c.orientation.snapshot(c.latest, mode, System.nanoTime()), fresh);
+      Orientation.Snapshot snapshot = c.orientation.snapshot(c.latest, mode, System.nanoTime());
+      instrument.update(snapshot, fresh);
+      kartModel.update(snapshot, fresh);
     }
     long videoAge = KartSession.age(c.lastVideo);
     boolean noPicture = videoAge > 1500 || session.decoder.rendered == 0;
     empty.setVisibility(noPicture ? View.VISIBLE : View.GONE);
-    if (noPicture) empty.setText("◉\nNo video");
+    if (noPicture) empty.setText("Waiting for camera");
     videoText.setText(c.name + " · " + (videoAge > 1500 ? "video stale" : session.decoder.detail));
     stats.setText(
         c.videoPackets
@@ -323,10 +389,10 @@ public final class MainActivity extends Activity
                 "%.1f MB · %d decode errors",
                 c.videoBytes / 1e6,
                 session.decoder.errors));
-    arm.setText(c.armed ? "Disarm" : "Arm");
-    arm.setBackground(rounded(c.armed ? 0xff795832 : 0xff2b443a));
-    record.setText(session.recorder.active() ? "Stop CSV" : "Record CSV");
-    recordText.setText(c.control + " · " + session.recorder.state);
+    arm.setText(c.armed ? "DISARM" : "ARM");
+    arm.setBackground(rounded(c.armed ? 0xff795832 : 0xff243342));
+    record.setText(session.recorder.active() ? "Stop Recording" : "Diagnostics");
+    recordText.setText(c.armed ? "ARMED" : "DISARMED");
   }
 
   private void toggleConnection() {
@@ -350,7 +416,7 @@ public final class MainActivity extends Activity
 
   private void confirmArm() {
     if (!controls) {
-      toast("Show controls under Setup before arming");
+      toast("Show controls in Network before arming");
       return;
     }
     if (session.current() != null && session.current().armed) {
@@ -418,7 +484,7 @@ public final class MainActivity extends Activity
     sidebar.setVisibility(fullScreen ? View.GONE : View.VISIBLE);
     header.setVisibility(fullScreen ? View.GONE : View.VISIBLE);
     health.setVisibility(fullScreen ? View.GONE : View.VISIBLE);
-    footer.setVisibility(fullScreen ? View.GONE : View.VISIBLE);
+    ((View) footer.getParent()).setVisibility(fullScreen ? View.GONE : View.VISIBLE);
     texture.post(this::fitVideo);
   }
 
@@ -667,7 +733,7 @@ public final class MainActivity extends Activity
     emergencyStop();
     KartSession.Connection c = session.current();
     String text =
-        "Android client 0.1.0\n\n"
+        "Android client 0.2.1\n\n"
             + session.decoder.detail
             + "\n"
             + session.recorder.state

@@ -36,7 +36,7 @@ public class DashboardSmokeTest {
             View root = a.getWindow().getDecorView();
             for (String label :
                 new String[] {
-                  "Connect", "Setup", "Arm", "STOP", "Record CSV", "Export", "Details"
+                  "Connect", "Network", "ARM", "EMERGENCY STOP", "Diagnostics", "Share CSV"
                 }) {
               Button b = button(root, label);
               assertNotNull(label, b);
@@ -44,12 +44,12 @@ public class DashboardSmokeTest {
               assertTrue(label + " visible", b.getGlobalVisibleRect(r));
               assertTrue(label + " fits viewport", r.width() >= b.getWidth() - 1);
             }
-            assertNotNull(button(root, "A · Arm"));
-            assertNotNull(button(root, "B · Stop"));
+            assertNotNull(button(root, "A"));
+            assertNotNull(button(root, "B"));
             // No network/arm action occurs in this smoke test.
           });
       screenshot("dashboard.png");
-      scenario.onActivity(a -> button(a.getWindow().getDecorView(), "Setup").performClick());
+      scenario.onActivity(a -> button(a.getWindow().getDecorView(), "Network").performClick());
       InstrumentationRegistry.getInstrumentation().waitForIdleSync();
       screenshot("setup.png");
     }
@@ -65,13 +65,14 @@ public class DashboardSmokeTest {
             button(root, "View").performClick();
             assertEquals(
                 View.GONE,
-                button(root, "Setup").getParent() instanceof View
-                    ? ((View) button(root, "Setup").getParent()).getVisibility()
+                button(root, "Network").getParent() instanceof View
+                    ? ((View) button(root, "Network").getParent()).getVisibility()
                     : View.VISIBLE);
-            assertNotNull(button(root, "B · Stop"));
-            button(root, "B · Stop").performClick();
+            assertNotNull(button(root, "B"));
+            button(root, "B").performClick();
             button(root, "View").performClick();
-            assertEquals(View.VISIBLE, ((View) button(root, "Setup").getParent()).getVisibility());
+            assertEquals(
+                View.VISIBLE, ((View) button(root, "Network").getParent()).getVisibility());
           });
     }
   }
