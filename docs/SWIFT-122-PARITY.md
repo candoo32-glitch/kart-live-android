@@ -76,7 +76,9 @@ CAL after three seconds. The 122 recording starts after prior session/calibratio
 history, so this restart comparison does not reconstruct the recorded iPad state
 or assert identical angles to that historical calibration.
 
-Local Java 17-compatible compilation and 29 protocol/orientation/CSV tests pass.
+Local Java 17-compatible compilation passes for all production classes against
+Android API 35. All 34 local tests pass: 29 protocol/orientation/CSV tests and
+five existing session safety tests using real localhost UDP and a fake API.
 They cover startup interruption and movement after READY, optional Nintendo,
 identical samples, both precision modes, recalibration, reset, invalid timing,
 unsigned wraps, rejected acceleration with continued prediction, large-angle
@@ -86,11 +88,38 @@ correction, pure-yaw preservation, unavailable-source rejection and CSV blanks.
 
 A passive 30-second capture received 900 native IMU packets from the connected
 `original` kart. It sends no motor packets or subscription requests. The production
-Java runner acquired references and reached READY. Final-source live/Swift
-comparison results and full Android build/emulator checks will be recorded after
-completion. Native captures stay outside Git in `/home/candoo/kart-android-lab/`.
+Java runner acquired references and reached READY at 3.497 seconds. Across 160
+READY comparisons, maximum Android/Swift angle difference was 2.65e-17 degree,
+quaternion-component difference 1.12e-16, and residual-G difference 5.36e-16.
+The stationary kart ended at pitch -0.001668 degree and roll -0.009421 degree;
+maximum READY tilt was 0.02349 degree, with median residual acceleration
+0.001417 G. This verifies live decoding and fusion while stationary; the saved
+117/118/122 recordings exercise movement. Native captures and comparison outputs
+stay outside Git in `/home/candoo/kart-android-lab/`.
 
 ## Build and emulator verification
+
+The initial hosted build [run 38197777739](https://github.com/candoo32-glitch/kart-live-android/actions/runs/38197777739)
+was rejected before any steps ran because GitHub reported failed account payments
+or a spending limit. This is not an Android test failure. Emulator tests have
+not run; a local API 35 production-source compilation and the 34 local tests
+pass. The local Gradle tasks `testDebugUnitTest`, `lintDebug`, and
+`assembleDebug` pass. Lint reports zero errors and 24 warnings. The Android
+instrumentation test source also compiles; execution remains unverified.
+
+The installable debug APK is saved locally as
+`/home/candoo/kart-android-lab/artifacts/kart-live-android-0.2.0-swift122.apk`.
+SHA-256: `eb56761c78a37e23a8f7835381cf6a80e8b70f6789c4508dc884b254ed23230c`.
+It is version 0.2.0/code 2, built from implementation commit `9c5fb75`, and its
+APK v2 signature verifies. It uses this server's local debug signing key; that
+may differ from a previously installed CI debug APK.
+
+This server is ARM64. The local build used SDK platform/build-tools 35 and
+Google's AAPT2 2.19-11948202 through `qemu-x86_64` with extracted Debian
+amd64 libc/libgcc. The compiler override is local and not committed:
+`-Pandroid.aapt2FromMavenOverride=/home/candoo/kart-android-lab/google-tools/aapt2`.
+The older Debian ARM AAPT2 cannot read API 35's resource table. No source or
+SDK target was changed to bypass that limitation.
 
 Run from the repository root:
 

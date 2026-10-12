@@ -25,12 +25,16 @@ an Android implementation of the core client, with the following differences:
 Unit tests cover terminal-fragment extraction, sequence gaps/duplicates/wrap,
 frame abandonment, NAL/AUD splitting, telemetry lengths/scales/subsamples,
 battery range, unsigned counters, overflow/exhaustion, nonfinite controls,
-background/stale-input gates, enrollment parsing, quaternion operations and rejection of mixed-precision
-gravity calibration.
+background/stale-input gates, enrollment parsing, quaternion operations and valid still calibration. Swift 122 coverage adds
+both precision modes and rejects an individual sample during a mode transition.
 Additional session tests use a fake HTTPS endpoint and real localhost UDP sockets
 to verify immediate neutral, stop packets, cancellation of late arm replies, stale
 telemetry shutdown, counter exhaustion without rearm, and read-only rejection.
-The APK build, 22 unit tests and Android lint are checked by GitHub Actions.
+The original APK build, 22 unit tests and Android lint passed GitHub Actions.
+The Swift 122 port passes 34 Gradle unit tests, API 35 APK assembly and
+Android lint (zero errors). Its hosted emulator run was blocked before starting
+by GitHub billing. See the current
+[verification report](SWIFT-122-PARITY.md) for build/emulator results.
 Three Android 15 emulator tests verify visible controls, full-screen return/stop,
 and MediaCodec rendering of a generated six-picture H.264 pattern, including
 masking retained decoder pictures when no subscription is active. Test fixtures
