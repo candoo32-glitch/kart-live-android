@@ -104,14 +104,16 @@ was rejected before any steps ran because GitHub reported failed account payment
 or a spending limit. This is not an Android test failure. Emulator tests have
 not run; a local API 35 production-source compilation and the 34 local tests
 pass. The local Gradle tasks `testDebugUnitTest`, `lintDebug`, and
-`assembleDebug` pass. Lint reports zero errors and 24 warnings. The Android
-instrumentation test source also compiles; execution remains unverified.
+`assembleDebug`, and `assembleDebugAndroidTest` all pass (72 tasks; build
+successful). Lint reports zero errors and 24 warnings. The Android instrumentation
+test APK builds successfully; execution remains unverified.
 
 The installable debug APK is saved locally as
 `/home/candoo/kart-android-lab/artifacts/kart-live-android-0.2.0-swift122.apk`.
 SHA-256: `eb56761c78a37e23a8f7835381cf6a80e8b70f6789c4508dc884b254ed23230c`.
 It is version 0.2.0/code 2, built from implementation commit `9c5fb75`, and its
-APK v2 signature verifies. It uses this server's local debug signing key; that
+APK v2 signature verifies. The companion instrumentation APK is saved alongside
+it as `kart-live-android-0.2.0-tests.apk`. It uses this server's local debug signing key; that
 may differ from a previously installed CI debug APK.
 
 This server is ARM64. The local build used SDK platform/build-tools 35 and
