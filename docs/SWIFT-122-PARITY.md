@@ -99,6 +99,11 @@ stay outside Git in `/home/candoo/kart-android-lab/`.
 
 ## Build and emulator verification
 
+The GitHub workflow now builds only the client APK (`assembleDebug`), as
+requested. It does not fetch Swift fixtures, run tests, or package test APKs.
+The earlier public run failed at fixture download because the Swift evidence
+repository is private; client assembly does not require those fixtures.
+
 The initial hosted build [run 38197777739](https://github.com/candoo32-glitch/kart-live-android/actions/runs/38197777739)
 was rejected before any steps ran because GitHub reported failed account payments
 or a spending limit. This is not an Android test failure. Emulator tests have

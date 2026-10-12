@@ -55,12 +55,12 @@ Use JDK 17, Android SDK platform 35 / build-tools 35.0.0, and the checked-in
 Gradle 8.11.1 wrapper (distribution SHA-256 verified). Android Gradle Plugin 8.9.2:
 
 ```sh
-python3 tools/fetch-swift-fixtures.py
-./gradlew testDebugUnitTest lintDebug assembleDebug
+./gradlew assembleDebug
 ```
 
-GitHub Actions performs these checks, runs Android 15 emulator UI/video tests,
-and uploads the debug APK, reports and screenshots (retained for 14 days).
+GitHub Actions builds only the client with `assembleDebug` and uploads its debug
+APK (retained for 14 days). Test data, test APKs and emulator tests are not part
+of this workflow. The verification tools remain available for separate local use.
 See [architecture](docs/ARCHITECTURE.md), [protocol and safety](docs/PROTOCOL.md),
 and [validation and differences from Swift](docs/VALIDATION.md).
 
