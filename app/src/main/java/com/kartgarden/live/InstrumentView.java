@@ -13,9 +13,11 @@ public final class InstrumentView extends View {
   private String source = "Fusion", detail = "Waiting for IMU", status = "WAIT_SOURCE";
   private double[] linear;
   private boolean fresh, model;
+  private KartModel kart;
 
   public void modelOnly() {
     model = true;
+    kart = new KartModel();
     invalidate();
   }
 
@@ -58,7 +60,7 @@ public final class InstrumentView extends View {
     p.setColor(0xff19212b);
     c.drawRoundRect(0, 0, w, h, 18, 18, p);
     if (model) {
-      drawKart(c, w / 2, h * .47f, Math.min(w * .30f, h * .29f));
+      kart.draw(c, q, w, h - 20 * density(), fresh);
       centered(
           c,
           "3D KART · " + (fresh ? source.toUpperCase(Locale.ROOT) : "WAITING"),
@@ -145,105 +147,6 @@ public final class InstrumentView extends View {
       float forward = (float) Math.max(-1.25, Math.min(1.25, -linear[1] / 9.81));
       c.drawCircle(cx + lateral * radius / 1.25f, cy - forward * radius / 1.25f, 3 * density(), p);
     }
-  }
-
-  private void drawKart(Canvas c, float cx, float cy, float scale) {
-    p.setColor(0xff203440);
-    p.setStrokeWidth(density());
-    for (int i = -3; i <= 3; i++) {
-      c.drawLine(cx - scale * 2, cy + i * scale * .22f, cx + scale * 2, cy + i * scale * .22f, p);
-    }
-    box(c, cx, cy, scale, 0, 0, 0, .62, 1.08, .12, 0xffc92732);
-    box(c, cx, cy, scale, 0, -.56, -.18, .38, .48, .16, 0xffee3741);
-    box(c, cx, cy, scale, -.52, .05, -.16, .17, .72, .14, 0xffe8eef0);
-    box(c, cx, cy, scale, .52, .05, -.16, .17, .72, .14, 0xffe8eef0);
-    box(c, cx, cy, scale, 0, .25, -.42, .25, .26, .24, 0xff3160ba);
-    // Seated driver and the distinctive raised camera mast.
-    ball(c, cx, cy, scale, 0, .22, -.78, .19, 0xffe5ae87);
-    ball(c, cx, cy, scale, 0, .24, -.92, .20, 0xffea303c);
-    box(c, cx, cy, scale, 0, .53, -.59, .035, .035, .55, 0xffe7edf0);
-    box(c, cx, cy, scale, 0, .53, -1.12, .18, .12, .12, 0xffe7edf0);
-    ball(c, cx, cy, scale, 0, .39, -1.12, .075, 0xff25394e);
-    for (double x : new double[] {-.69, .69})
-      for (double y : new double[] {-.70, .70}) {
-        ball(c, cx, cy, scale, x, y, 0, .23, 0xff0c1118);
-        ball(c, cx, cy, scale, x, y, 0, .105, 0xffa8b4bf);
-      }
-  }
-
-  private float[] point(double[] v, float cx, float cy, float scale) {
-    double[] r = Orientation.rotate(q, v);
-    return new float[] {
-      cx + (float) (r[0] + .25 * r[1]) * scale, cy + (float) (.45 * r[1] + r[2]) * scale
-    };
-  }
-
-  private void ball(
-      Canvas c,
-      float cx,
-      float cy,
-      float scale,
-      double x,
-      double y,
-      double z,
-      double r,
-      int color) {
-    float[] center = point(new double[] {x, y, z}, cx, cy, scale);
-    p.setStyle(Paint.Style.FILL);
-    p.setColor(color);
-    c.drawCircle(center[0], center[1], (float) r * scale, p);
-  }
-
-  private void box(
-      Canvas c,
-      float cx,
-      float cy,
-      float scale,
-      double x,
-      double y,
-      double z,
-      double hx,
-      double hy,
-      double hz,
-      int color) {
-    double[][] vertices = new double[8][3];
-    for (int i = 0; i < 8; i++)
-      vertices[i] =
-          new double[] {
-            x + ((i & 1) == 0 ? -hx : hx),
-            y + ((i & 2) == 0 ? -hy : hy),
-            z + ((i & 4) == 0 ? -hz : hz)
-          };
-    int[][] faces = {
-      {0, 1, 3, 2}, {4, 6, 7, 5}, {0, 4, 5, 1}, {2, 3, 7, 6}, {0, 2, 6, 4}, {1, 5, 7, 3}
-    };
-    java.util.Arrays.sort(faces, (a, b) -> Double.compare(depth(vertices, a), depth(vertices, b)));
-    for (int[] face : faces) {
-      Path shape = new Path();
-      for (int i = 0; i < 4; i++) {
-        float[] v = point(vertices[face[i]], cx, cy, scale);
-        if (i == 0) shape.moveTo(v[0], v[1]);
-        else shape.lineTo(v[0], v[1]);
-      }
-      shape.close();
-      float shade = face[0] >= 4 ? 1f : .76f;
-      p.setColor(
-          Color.rgb(
-              (int) (Color.red(color) * shade),
-              (int) (Color.green(color) * shade),
-              (int) (Color.blue(color) * shade)));
-      p.setStyle(Paint.Style.FILL);
-      c.drawPath(shape, p);
-    }
-  }
-
-  private double depth(double[][] vertices, int[] face) {
-    double sum = 0;
-    for (int i : face) {
-      double[] r = Orientation.rotate(q, vertices[i]);
-      sum += r[1] - .45 * r[2];
-    }
-    return sum;
   }
 
   private float density() {

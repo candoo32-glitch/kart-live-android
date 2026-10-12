@@ -733,7 +733,7 @@ public final class MainActivity extends Activity
     emergencyStop();
     KartSession.Connection c = session.current();
     String text =
-        "Android client 0.2.1\n\n"
+        "Android client 0.2.2\n\n"
             + session.decoder.detail
             + "\n"
             + session.recorder.state
